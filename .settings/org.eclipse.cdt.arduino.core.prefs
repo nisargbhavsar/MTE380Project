@@ -1,0 +1,2 @@
+eclipse.preferences.version=1
+libraries=[{"package"\:"arduino","platform"\:"avr","library"\:"EEPROM"},"VL53L1X","ST_HW_HC_SR04",{"package"\:"arduino","platform"\:"avr","library"\:"Wire"},{"package"\:"arduino","platform"\:"avr","library"\:"SPI"},"MPU6050_tockn",{"package"\:"arduino","platform"\:"avr","library"\:"SoftwareSerial"},{"package"\:"arduino","platform"\:"avr","library"\:"HID"}]
