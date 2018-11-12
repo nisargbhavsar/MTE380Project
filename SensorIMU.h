@@ -17,6 +17,7 @@ public:
 	virtual ~Sensor_IMU();
 
 	IMUData getData();
+	void initialize();
 	void printDataBuffer();
 	void printData(IMUData);
 
@@ -24,5 +25,6 @@ public:
 	MPU6050* IMU;
 	IMUData* dataBuffer;
 	int counter = 0, numData = 0;
+	float offsetXAngle,offsetYAngle,offsetZAngle;
 };
 #endif /* SENSORIMU_H_ */

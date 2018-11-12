@@ -12,17 +12,16 @@
 //Function Prototypes
 void printCurrIMUData(unsigned long);
 void alignToWall(ST_HW_HC_SR04*);
+void turn90Deg(bool);
+
 
 int DATA_BUFFER_LENGTH = 5;
 
-//VL53L1X TOF;
+VL53L1X TOF;
 Sensor_IMU IMU;
-//Sensor_IMU imuTest;
-//MPU6050 IMU(Wire);
 
-ST_HW_HC_SR04* testUR;
+ST_HW_HC_SR04* Ultrasonic;
 
-MPU6050* testIMUPtr2;
 AF_DCMotor rightMotor(4); //right
 AF_DCMotor leftMotor(3); //left
 
@@ -38,30 +37,25 @@ void setup() {
 	Wire.begin();
 
 	Wire.setClock(400000); // use 400 kHz I2C
-	Serial.println("First Wall Following Test");
-	testIMUPtr2 = new MPU6050(Wire);
 
+	Serial.println("IMU Object Test");
+
+	IMU.initialize();
 
 	 // TRIG = 40, ECHO= 42
-	testUR = new ST_HW_HC_SR04(40, 42);
-	testIMUPtr2->begin();
+	Ultrasonic = new ST_HW_HC_SR04(40, 42);
 
-	for (int i = 0; i < 50; i++) {
-		testIMUPtr2->update();
-		offsetXAngle += testIMUPtr2->getAngleX();
-		offsetYAngle += testIMUPtr2->getAngleY();
-		offsetZAngle += testIMUPtr2->getAngleZ();
-	}
-	offsetXAngle = offsetXAngle/50;
-	offsetYAngle = offsetYAngle/50;
-	offsetZAngle = offsetZAngle/50;
+
+
+	//String offsets = "Offsets: " + (String) offsetXAngle + ", " + (String)offsetYAngle +", "+(String)offsetXAngle;
+
+	//Serial.println(offsets);
 
 	startMillis = millis();  //initial start time
-	rightMotor.run(FORWARD);
-	leftMotor.run(FORWARD);
-	rightMotor.setSpeed(100);
-	leftMotor.setSpeed(100);
-
+//	rightMotor.run(FORWARD);
+//	leftMotor.run(FORWARD);
+//	rightMotor.setSpeed(100);
+//	leftMotor.setSpeed(100);
 }
 
 
@@ -71,21 +65,72 @@ void loop(void)
 	currMillis = millis();
 	deltaMillis = currMillis - startMillis;
 
-	testIMUPtr2->update();
+
 	if((currMillis - lastAlignTime) > 250){
-		alignToWall(testUR);
-		Serial.print("Time: ");
-		Serial.println(currMillis - lastAlignTime);
+		//alignToWall(testUR);
+		IMUData tempData = IMU.getData();
+		tempData.angle[2]-=offsetZAngle;
+		IMU.printData(tempData);
+
+		//IMU.IMU->update();
+
+
+		//Serial.print("Time: ");
+		//Serial.println(currMillis - lastAlignTime);
 		lastAlignTime = currMillis;
 
 	}
 }
 
-//void rotate90Deg (bool isLeft) {
-//
-//	testIMUPtr2->getAngleX() -offsetXAngle
-//
-//}
+void turn90Deg(bool isLeft){
+	// set motor speeds
+	leftMotor.setSpeed(0);
+	rightMotor.setSpeed(0);
+
+	float TOL = 1, currZ = 0, initZ = 0;
+	IMUData data;
+	for (int i = 0; i < 10; i++) {
+		data = IMU.getData();
+	//	Serial.print(IMU->getAngleZ());
+	//	Serial.print(", ");
+		initZ += data.angle[2];
+	}
+	initZ /= 10;
+	currZ = initZ;
+
+
+	if (isLeft) {
+		leftMotor.run(BACKWARD);
+		rightMotor.run(FORWARD);
+	}
+	else {
+		leftMotor.run(FORWARD);
+		rightMotor.run(BACKWARD);
+	}
+
+	leftMotor.setSpeed(100);
+	rightMotor.setSpeed(100);
+
+	while(abs(abs(currZ-initZ) - 90) > TOL) {
+		delay(100);
+		data = IMU.getData();
+
+		currZ = data.gyro[2];
+
+		float currX = data.gyro[0];
+		float currY = data.gyro[1];
+		String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+		Serial.println(currOrientation);
+	}
+
+	// set motor speeds
+	leftMotor.run(FORWARD);
+	rightMotor.run(FORWARD);
+	leftMotor.setSpeed(0);
+	rightMotor.setSpeed(0);
+
+}
+
 
 /*	Print current imu data in CSV format
  * 	HEADER:
@@ -110,17 +155,17 @@ void printCurrIMUData(unsigned long currMillis){
 //		Serial.print(", ");
 //		Serial.print(testIMUPtr2->getAccAngleY());
 //		Serial.print(", ");
-		Serial.print(testIMUPtr2->getGyroAngleX());
+		Serial.print(IMU.IMU->getGyroAngleX());
 		Serial.print(", ");
-		Serial.print(testIMUPtr2->getGyroAngleY());
+		Serial.print(IMU.IMU->getGyroAngleY());
 		Serial.print(", ");
-		Serial.print(testIMUPtr2->getGyroAngleZ());
+		Serial.print(IMU.IMU->getGyroAngleZ());
 		Serial.print(", ");
-		Serial.print(testIMUPtr2->getAngleX());
+		Serial.print(IMU.IMU->getAngleX());
 		Serial.print(", ");
-		Serial.print(testIMUPtr2->getAngleY());
+		Serial.print(IMU.IMU->getAngleY());
 		Serial.print(", ");
-		Serial.println(testIMUPtr2->getAngleZ());
+		Serial.println(IMU.IMU->getAngleZ());
 		IMU_lastReadTime = currMillis;
 	}
 }
@@ -147,11 +192,6 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	rightMotor.setSpeed(100);
 	leftMotor.setSpeed(100);
 
-//	for (int i = 0; i < 10;  i++){
-//		hitTime = sensor->getHitTime();
-//		currDist += (int)(hitTime / 29);
-//	}
-//	currDist /= 10;
 	currDist = (int)(sensor->getHitTime() / 29);
 	initError = currDist - initDist;
 

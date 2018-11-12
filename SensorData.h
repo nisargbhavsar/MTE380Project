@@ -10,9 +10,9 @@
 
 typedef struct {
 	unsigned long timeStamp;
-	double accel[3];
-	double gyro[3];
-	double angle[3];
+	float accel[3];
+	float gyro[3];
+	float angle[3];
 } IMUData;
 
 typedef struct {
