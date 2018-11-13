@@ -15,8 +15,6 @@ void alignToWall(ST_HW_HC_SR04*);
 void turn90Deg(bool);
 
 
-int DATA_BUFFER_LENGTH = 5;
-
 VL53L1X TOF;
 Sensor_IMU IMU;
 
@@ -42,8 +40,8 @@ void setup() {
 
 	IMU.initialize();
 
-	 // TRIG = 40, ECHO= 42
-	Ultrasonic = new ST_HW_HC_SR04(40, 42);
+	 // TRIG = 3, ECHO= 2
+	Ultrasonic = new ST_HW_HC_SR04(3, 2);
 
 
 
@@ -175,11 +173,11 @@ void printCurrIMUData(unsigned long currMillis){
  */
 void alignToWall(ST_HW_HC_SR04* sensor){
 
-	rightMotor.run(FORWARD);
-	leftMotor.run(FORWARD);
+	rightMotor.setSpeed(0);
+	leftMotor.setSpeed(0);
 
 	//Distances are in cm, limit precision to 1cm
-	int initDist = 0, currDist = 0, initError = 0;
+	int initDist = 0, currDist = 0, leftError = 0, rightError = 0, prevDist = 0;;
 
 	for (int i = 0; i < 50;  i++){
 		hitTime = sensor->getHitTime();
@@ -188,36 +186,58 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	initDist /= 50;
 	Serial.println(initDist);
 
-	//Move 'straight'
+	currDist = (int)(sensor->getHitTime() / 29);
+
+	//Try turning left to minimize error
+	rightMotor.run(FORWARD);
+	leftMotor.run(BACKWARD);
+	leftMotor.setSpeed(100);
+	rightMotor.setSpeed(100);
+
+	delay(100);
+
+	leftMotor.setSpeed(0);
+	rightMotor.setSpeed(0);
+	currDist = (int)(sensor->getHitTime() / 29);
+	leftError = abs(currDist - initDist);
+
+	//Try turning right to minimize error
+	rightMotor.run(BACKWARD);
+	leftMotor.run(FORWARD);
+	leftMotor.setSpeed(100);
+	rightMotor.setSpeed(100);
+
+	delay(200);
+	leftMotor.setSpeed(0);
+	rightMotor.setSpeed(0);
+
+	currDist = (int)(sensor->getHitTime() / 29);
+	rightError = abs(currDist - initDist);
+
+	if(rightError < leftError){
+		//turn right to realign with wall
+		rightMotor.run(BACKWARD);
+		leftMotor.run(FORWARD);
+	}
+	else{
+		//turn left to realign with wall
+		rightMotor.run(FORWARD);
+		leftMotor.run(BACKWARD);
+	}
 	rightMotor.setSpeed(100);
 	leftMotor.setSpeed(100);
 
 	currDist = (int)(sensor->getHitTime() / 29);
-	initError = currDist - initDist;
 
-	//Try turning left to minimize error
-	while((abs(currDist - initDist) > 1) && (abs(initError) > abs(currDist - initDist))){
-		leftMotor.run(BACKWARD);
-		leftMotor.setSpeed(100);
+	do{
+		prevDist = currDist;
 		delay(100);
 		currDist = (int)(sensor->getHitTime() / 29);
-	}
-
-	//Turning left didn't work, try turning right
-	if(abs(initError) > abs(currDist - initDist)){
-		while((abs(currDist - initDist) > 1)){
-			leftMotor.run(FORWARD);
-			leftMotor.setSpeed(100);
-			rightMotor.run(BACKWARD);
-			rightMotor.setSpeed(100);
-			delay(100);
-			currDist = (int)(sensor->getHitTime() / 29);
-		}
-	}
+	}while(currDist < prevDist);
 
 	rightMotor.run(FORWARD);
 	leftMotor.run(FORWARD);
-	rightMotor.setSpeed(100);
-	leftMotor.setSpeed(100);
+	rightMotor.setSpeed(0);
+	leftMotor.setSpeed(0);
 }
 

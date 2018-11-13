@@ -23,7 +23,7 @@ void Sensor_IMU::initialize(){
 		this->counter =0;
 
 		(this->IMU)->begin();
-		(this->IMU)->calcGyroOffsets(0);
+		(this->IMU)->calcGyroOffsets(1);
 		float x =0, y= 0, z= 0;
 		for (int i = 0; i < 50; i++) {
 				this->IMU->update();
@@ -61,9 +61,13 @@ IMUData Sensor_IMU::getData(){
 	returnData.angle[2] = (this->IMU)->getAngleZ() - this->offsetZAngle;
 
 	this->dataBuffer[this->counter] = returnData;
-	this->counter = (int)((this->counter + 1) % this->maxNumData);
-//	String temp = "Counter: "+ (int) this->counter;
-//	Serial.println(temp);
+
+
+
+	this->counter ++;
+	this->counter = (this->counter)%(this->maxNumData);
+	String temp = "Counter: "+ (int) this->counter;
+	Serial.println(temp);
 	if(this->numData < this->maxNumData)
 		this->numData += 1;
 
