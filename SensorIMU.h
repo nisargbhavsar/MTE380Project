@@ -24,7 +24,7 @@ public:
 	static const int maxNumData = 5;
 	MPU6050* IMU;
 	IMUData* dataBuffer;
-	int counter = 0, numData = 0;
+	int counter, numData;
 	float offsetXAngle,offsetYAngle,offsetZAngle;
 };
 #endif /* SENSORIMU_H_ */
