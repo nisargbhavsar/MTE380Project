@@ -10,26 +10,32 @@
 #include "ST_HW_HC_SR04.h"
 
 //Function Prototypes
+double getUltrasonicReading(ST_HW_HC_SR04*, int);
 void printCurrIMUData(unsigned long);
 void alignToWall(ST_HW_HC_SR04*);
+void alignToWallWithTwo(ST_HW_HC_SR04*, ST_HW_HC_SR04*);
+
 void turn90Deg(bool);
+
 //void setMotorSpeeds(int rightMotorDir, int rightMotorSpeed, int leftMotorDir, int leftMotorSpeed);
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed);
 void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopLeftMotor();
 void stopRightMotor();
 
-const int ROT_SPEED = 255;
+const int ROT_SPEED = 60;
 
-const int BWD = 1;
-const int FWD = 0;
-const int ALIGN_TOL = 1;
+const int BWD = 0;
+const int FWD = 1;
+const double ALIGN_TOL = 0.5;
 const int MS_ROTATE = 200;
 
 VL53L1X TOF;
 Sensor_IMU IMU;
 
-ST_HW_HC_SR04* Ultrasonic;
+ST_HW_HC_SR04* UltrasonicLeft1;
+ST_HW_HC_SR04* UltrasonicLeft2;
+
 
 AF_DCMotor rightMotor(4); //right
 AF_DCMotor leftMotor(3); //left
@@ -42,7 +48,7 @@ float offsetXAngle=0, offsetYAngle=0, offsetZAngle=0;
 // Right and left motors
 int RightMotorDir = 12, RightMotorBrake = 9, LeftMotorDir = 13, LeftMotorBrake = 8, RightMotorSpeed = 3, LeftMotorSpeed = 11;
 
-
+//0,1,2,4,7,10
 void setup() {
 	Serial.begin(115200);
     while(!Serial); // Wait for the Serial connection;
@@ -54,8 +60,9 @@ void setup() {
 
 	//IMU.initialize();
 
-	 // TRIG = 3, ECHO= 2
-	Ultrasonic = new ST_HW_HC_SR04(3, 2);
+	 // TRIG = 1, ECHO= 0
+	UltrasonicLeft1 = new ST_HW_HC_SR04(10, 7);
+	UltrasonicLeft2 = new ST_HW_HC_SR04(4, 2);
 
 	//delay(1000);
 
@@ -72,35 +79,19 @@ void setup() {
 	pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
 	pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
 
-//	// turn left
-//	setLeftMotor(BWD, 75);
-//	setRightMotor(FWD, 75);
-//
-//	delay(1000);
-//	stopLeftMotor();
-//	stopRightMotor();
-//	delay(3000);
-//
-//	// turn right
-//	setLeftMotor(FWD, 75);
-//	setRightMotor(BWD, 75);
-//	delay(1000);
-//	stopLeftMotor();
-//	stopRightMotor();
-
-
-	//setLeftMotor(FWD, 255);
-	//setRightMotor(FWD,255);
+//	setLeftMotor (FWD,255);
+//	setRightMotor(FWD,255);
 
 	String temp = "Aligning to wall";
 	Serial.println(temp);
-	alignToWall(Ultrasonic);
+	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 }
 
 
 void loop(void)
 {
-
+	delay(1000);
+	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 //	currMillis = millis();
 //	deltaMillis = currMillis - startMillis;
 //
@@ -225,14 +216,8 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	//Distances are in cm, limit precision to 1cm
 	double initDist = 0, rightDist = 0, leftDist = 0, currDist = 0, leftError = 0, rightError = 0, prevDist = 0;
 
-	for (int i = 0; i < 50;  i++){
-		hitTime = sensor->getHitTime();
-		initDist += (double)(hitTime / 29.1);
-	}
-	initDist /= 50;
+	initDist = getUltrasonicReading(sensor, 50);
 
-//	String temp = "initDist: " + (String)initDist + " ";
-//	Serial.print(temp);
 	//Try turning left to minimize error
 	setLeftMotor(BWD, ROT_SPEED);
 	setRightMotor(FWD, ROT_SPEED);
@@ -242,26 +227,21 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	stopLeftMotor();
 	stopRightMotor();
 
-	delay(100);
+	delay(MS_ROTATE);
 
-	leftDist = 0;
-	for (int i = 0; i < 50;  i++){
-		hitTime = sensor->getHitTime();
-		leftDist += (double)(hitTime / 29.1);
-	}
-	leftDist /= 50;
+	leftDist = getUltrasonicReading(sensor, 50);
 
-//	temp = "leftDist: " + (String)leftDist + " ";
-//	Serial.print(temp);
+	delay(MS_ROTATE);
 
-	delay(100);
 	//Try turning right to minimize error
 	setLeftMotor(FWD, ROT_SPEED);
 	setRightMotor(BWD, ROT_SPEED);
 
 	delay(MS_ROTATE);
+
 	stopLeftMotor();
 	stopRightMotor();
+
 	delay(500);
 
 	setLeftMotor(FWD, ROT_SPEED);
@@ -270,14 +250,9 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	delay(MS_ROTATE);
 	stopLeftMotor();
 	stopRightMotor();
-	delay(100);
+	delay(MS_ROTATE);
 
-	rightDist = 0;
-	for (int i = 0; i < 50;  i++){
-		hitTime = sensor->getHitTime();
-		rightDist += (double)(hitTime / 29.1);
-	}
-	rightDist /= 50;
+	rightDist = getUltrasonicReading(sensor, 50);
 
 	String temp = "leftDist: " + (String)leftDist + " initDist: " + (String)initDist + " rightDist: " + (String)rightDist;
 	Serial.println(temp);
@@ -302,38 +277,30 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	else {
 		if(leftDist > initDist && initDist > rightDist){
 			//turn right to realign with wall
-//			setLeftMotor(FWD, ROT_SPEED);
-//			setRightMotor(BWD, ROT_SPEED);
 			temp = "Turn Right";
 			Serial.println(temp);
 			turnLeft = false;
 		}
 		else if (leftDist > rightDist && rightDist > initDist){
 			//turn left to realign with wall
-//			setLeftMotor(BWD, ROT_SPEED);
-//			setRightMotor(FWD, ROT_SPEED);
 			temp = "Turn Left";
 			Serial.println(temp);
 			turnLeft = true;
 		}
 		else if (leftDist < rightDist && leftDist > initDist){
 			//turn left to realign with wall
-//			setLeftMotor(BWD, ROT_SPEED);
-//			setRightMotor(FWD, ROT_SPEED);
 			temp = "Turn Left";
 			Serial.println(temp);
 			turnLeft = false;
 		}
 		else if (leftDist < rightDist && rightDist > initDist){
 			//turn left to realign with wall
-//			setLeftMotor(BWD, ROT_SPEED);
-//			setRightMotor(FWD, ROT_SPEED);
 			temp = "Turn Left";
 			Serial.println(temp);
 			turnLeft = true;
 		}
 		currDist = rightDist;
-		delay(100);
+		delay(MS_ROTATE);
 
 		if(turnLeft){
 			setLeftMotor(BWD, ROT_SPEED);
@@ -352,15 +319,11 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 			currDist = 0;
 
 			while(currDist < 2){
-				for(int i = 0; i < 50; i++){
-					hitTime = sensor->getHitTime();
-					currDist += (double)(hitTime / 29.1);
-				}
-				currDist /=50;
+				currDist = getUltrasonicReading(sensor, 50);
 			}
 			temp = "PrevDist: " + (String)prevDist + " currDist: " +(String) currDist;
 			Serial.println(temp);
-		}while((currDist - prevDist < 0));
+		}while(currDist - prevDist > ALIGN_TOL);
 
 		temp = "Outof loop";
 		Serial.println(temp);
@@ -369,16 +332,75 @@ void alignToWall(ST_HW_HC_SR04* sensor){
 	stopRightMotor();
 }
 
+void alignToWallWithTwo(ST_HW_HC_SR04* sensor1, ST_HW_HC_SR04* sensor2){
+	stopLeftMotor();
+	stopRightMotor();
+	bool turnLeft = false;
+	double leftDist = getUltrasonicReading(sensor1, 10);
+	double rightDist = getUltrasonicReading(sensor2, 10);
+
+	String temp = "leftDist: " + (String) leftDist + "rightDist: " + (String)rightDist;
+	Serial.println(temp);
+	temp = "abs(leftDist - rightDist): " + (String)(abs(leftDist - rightDist));
+	Serial.println(temp);
+	temp = (String)((abs(leftDist - rightDist) - ALIGN_TOL) > 0);
+	Serial.println(temp);
+
+	if((abs(leftDist - rightDist) - ALIGN_TOL) > 0){
+		if(rightDist < leftDist){
+			//turn right
+			setLeftMotor(BWD, ROT_SPEED);
+			setRightMotor(FWD, ROT_SPEED);
+			temp = "Turn right";
+			Serial.println(temp);
+		}
+		else{
+			setLeftMotor(FWD, ROT_SPEED);
+			setRightMotor(BWD, ROT_SPEED);
+			temp = "Turn left";
+			Serial.println(temp);
+		}
+		do{
+			leftDist = getUltrasonicReading(sensor1, 10);
+			rightDist = getUltrasonicReading(sensor2, 10);
+			//delay(50);
+			String temp = "leftDist: " + (String) leftDist + "rightDist: " + (String)rightDist;
+			Serial.println(temp);
+		}while(abs(leftDist - rightDist) > ALIGN_TOL);
+	}
+	else{
+		String temp = "Already aligned";
+		Serial.println(temp);
+		setLeftMotor(FWD, ROT_SPEED);
+		setRightMotor(FWD, ROT_SPEED);
+
+	}
+//	stopRightMotor();
+//	stopLeftMotor();
+}
+
+double getUltrasonicReading(ST_HW_HC_SR04* sensor, int numRead){
+	double returnVal = 0;
+	int hitTime = 0;
+
+	for (int i = 0; i < numRead;  i++){
+		hitTime = sensor->getHitTime();
+		returnVal += (double)(hitTime / 29.1);
+	}
+	returnVal /= numRead;
+	return returnVal;
+}
+
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed){
-  digitalWrite(LeftMotorDir, leftMotorDir); //Establishes forward direction of Channel A
-  digitalWrite(LeftMotorBrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(LeftMotorSpeed, leftMotorSpeed);   //Spins the motor on Channel A at full speed
+  digitalWrite(LeftMotorDir, leftMotorDir);
+  digitalWrite(LeftMotorBrake, LOW);
+  analogWrite(LeftMotorSpeed, leftMotorSpeed);
 }
 
 void setRightMotor(int rightMotorDir, int rightMotorSpeed){
-  digitalWrite(RightMotorDir, rightMotorDir); //Establishes forward direction of Channel A
-  digitalWrite(RightMotorBrake, LOW);   //Disengage the Brake for Channel A
-  analogWrite(RightMotorSpeed, rightMotorSpeed);   //Spins the motor on Channel A at full speed
+  digitalWrite(RightMotorDir, rightMotorDir);
+  digitalWrite(RightMotorBrake, LOW);
+  analogWrite(RightMotorSpeed, rightMotorSpeed);
 }
 
 void stopLeftMotor() {
