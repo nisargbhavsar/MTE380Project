@@ -3,14 +3,15 @@
 
 //Sensor Libraries
 #include "VL53L1X.h" //TOF
-//#include "SparkFun_VL53L1X_Arduino_Library.h"
 #include "MPU6050_tockn.h" //IMU
 #include "SensorIMU.h"
-#include "AFMotor.h"
 #include "ST_HW_HC_SR04.h"
+#include "Encoder.h"
 
 #define encoder0PinA  2
 #define encoder0PinB  3
+Encoder encoder(encoder0PinA, encoder0PinB);
+
 
 
 //Function Prototypes
@@ -27,10 +28,10 @@ void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopLeftMotor();
 void stopRightMotor();
 
-void doEncoderA();
-void doEncoderB();
+void doEncoder();
+//void doEncoderB();
 
-const int ROT_SPEED = 60;
+const int ROT_SPEED = 255;
 
 const int BWD = 0;
 const int FWD = 1;
@@ -55,6 +56,7 @@ float offsetXAngle=0, offsetYAngle=0, offsetZAngle=0;
 // Right and left motors
 int RightMotorDir = 12, RightMotorBrake = 9, LeftMotorDir = 13, LeftMotorBrake = 8, RightMotorSpeed = 3, LeftMotorSpeed = 11;
 
+//Unused pins
 //0,1,2,4,7,10
 
 
@@ -65,9 +67,9 @@ void setup() {
 
 	Wire.setClock(400000); // use 400 kHz I2C
 //	TOF.begin();
-	//Serial.println("IMU Object Test");
+	Serial.println("IMU Wall Orientation Test");
 
-	//IMU.initialize();
+	IMU.initialize();
 
 	//ULTRASONICS
 	 // TRIG = 1, ECHO= 0
@@ -85,42 +87,43 @@ void setup() {
 	//MOTOR CONTROLLER PIN SETUP
 	pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
 	pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+	stopRightMotor();
 
 	//Setup Channel B
 	pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
 	pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
-
-	setLeftMotor (FWD,200);
-	setRightMotor(FWD,200);
+	stopLeftMotor();
+//
+//	setLeftMotor (FWD,100);
+//	setRightMotor(FWD,100);
 
 	//String temp = "Aligning to wall";
 	//Serial.println(temp);
 	//alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 
 	//ENCODER SETUP
-	pinMode(encoder0PinA, INPUT);
-	pinMode(encoder0PinB, INPUT);
+   // attachInterrupt(digitalPinToInterrupt(0), doEncoder, CHANGE);
 
-	// encoder pin on interrupt 0 (pin 2)
-	attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoderA, CHANGE);
-
-	// encoder pin on interrupt 1 (pin 3)
-	attachInterrupt(digitalPinToInterrupt(encoder0PinB), doEncoderB, CHANGE);
-
-	Serial.begin (9600);
 
 }
 
+	bool test = 0;
 
 void loop(void)
 {
-	while (TOF.newDataReady() == false)
-		delay(5);
+	delay(500);
+	IMU.recalcOffsets();
+	//Serial.println(IMU.onWall());
+	turn90Deg(test);
+	test = !test;
 
-	int distance = TOF.getDistance(); //Get the result of the measurement from the sensor
-
-	Serial.print("Distance(mm): ");
-	Serial.print(distance);
+//	while (TOF.newDataReady() == false)
+//		delay(5);
+//
+//	int distance = TOF.getDistance(); //Get the result of the measurement from the sensor
+//
+//	Serial.print("Distance(mm): ");
+//	Serial.print(distance);
 
 	//	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 //	currMillis = millis();
@@ -149,52 +152,51 @@ void loop(void)
 }
 
 void turn90Deg(bool isLeft){
-	// set motor speeds
-//	leftMotor.setSpeed(0);
-//	rightMotor.setSpeed(0);
-//
-//	float TOL = 1, currZ = 0, initZ = 0;
-//	IMUData data;
-//	for (int i = 0; i < 10; i++) {
-//		data = IMU.getData();
-//	//	Serial.print(IMU->getAngleZ());
-//	//	Serial.print(", ");
-//		initZ += data.angle[2];
-//	}
-//	initZ /= 10;
-//	currZ = initZ;
-//
-//
-//	if (isLeft) {
-//		leftMotor.run(BACKWARD);
-//		rightMotor.run(FORWARD);
-//	}
-//	else {
-//		leftMotor.run(FORWARD);
-//		rightMotor.run(BACKWARD);
-//	}
-//
-//	leftMotor.setSpeed(100);
-//	rightMotor.setSpeed(100);
-//
-//	while(abs(abs(currZ-initZ) - 90) > TOL) {
-//		delay(100);
-//		data = IMU.getData();
-//
-//		currZ = data.gyro[2];
-//
-//		float currX = data.gyro[0];
-//		float currY = data.gyro[1];
+	stopLeftMotor();
+	stopRightMotor();
+
+	if(isLeft)
+		Serial.println("Turning Left");
+	else
+		Serial.println("Turning Right");
+	float TOL = 1, currZ = 0, initZ = 0;
+	IMUData data;
+	for (int i = 0; i < 10; i++) {
+		data = IMU.getData();
+	//	Serial.print(IMU->getAngleZ());
+	//	Serial.print(", ");
+		initZ += data.angle[2];
+	}
+	initZ /= 10;
+
+	currZ = 0;
+	if (isLeft) {
+		setLeftMotor(BWD, ROT_SPEED);
+		setRightMotor(FWD, ROT_SPEED);
+	}
+	else {
+		setLeftMotor(FWD, ROT_SPEED);
+		setRightMotor(BWD, ROT_SPEED);
+	}
+	String temp;
+	while(abs(abs(currZ-initZ) - 90) > TOL*2) {
+		delay(300);
+		data = IMU.getData();
+
+		//maybe change to:
+		currZ = data.angle[2];
+		//currZ = data.gyro[2];
+//		temp = "CurrZ: " + (String) currZ;
+//		Serial.println(temp);
+//		temp = "initZ: " + (String) initZ;
+//		Serial.println(temp);
 //		String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
 //		Serial.println(currOrientation);
-//	}
-//
-//	// set motor speeds
-//	leftMotor.run(FORWARD);
-//	rightMotor.run(FORWARD);
-//	leftMotor.setSpeed(0);
-//	rightMotor.setSpeed(0);
+	}
 
+	// set motor speeds
+	stopLeftMotor();
+	stopRightMotor();
 }
 
 
@@ -494,5 +496,10 @@ void doEncoderB() {
       encoder0Pos = encoder0Pos - 1;          // CCW
     }
   }
+}
+
+void doEncoder(){
+	encoder.update();
+	Serial.println( encoder.getPosition() );
 }
 

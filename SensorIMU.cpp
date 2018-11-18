@@ -17,29 +17,37 @@ Sensor_IMU::Sensor_IMU(){
 //	Serial.println("Finished Constructor");
 }
 
+void Sensor_IMU::recalcOffsets() {
+	Serial.println("Recalculating offsets");
+	float x = 0, y = 0, z = 0;
+
+	for (int i = 0; i < 50; i++) {
+		this->IMU->update();
+		x += this->IMU->getAngleX();
+		y += this->IMU->getAngleY();
+		z += this->IMU->getAngleZ();
+	}
+	this->offsetXAngle = x / 50;
+	this->offsetYAngle = y / 50;
+	this->offsetZAngle = z / 50;
+//	String offsetTemp = "offsetx: " + (String) (this->offsetXAngle)
+//			+ "offsety: " + (String) (this->offsetYAngle) + "offsetz: "
+//			+ (String) (this->offsetZAngle);
+//	Serial.println(offsetTemp);
+}
+
 void Sensor_IMU::initialize(){
-		this->IMU = new MPU6050(Wire);
-		this->dataBuffer = (IMUData*) malloc(sizeof(IMUData)* 5);
-		this->numData = 0;
-		this->counter =-1;
+	this->IMU = new MPU6050(Wire);
+	this->dataBuffer = (IMUData*) malloc(sizeof(IMUData)* 5);
+	this->numData = 0;
+	this->counter =-1;
 
-		(this->IMU)->begin();
-		(this->IMU)->calcGyroOffsets(1);
+	(this->IMU)->begin();
+	(this->IMU)->calcGyroOffsets(0);
 
-		delay(100);
+	delay(100);
 
-		float x =0, y= 0, z= 0;
-		for (int i = 0; i < 50; i++) {
-				this->IMU->update();
-				x += this->IMU->getAngleX();
-				y += this->IMU->getAngleY();
-				z += this->IMU->getAngleZ();
-		}
-		this->offsetXAngle = x/50;
-		this->offsetYAngle = y/50;
-		this->offsetZAngle = z/50;
-//		String offsetTemp = "offsetx: "+(String)this->offsetXAngle + "offsety: "+(String)this->offsetYAngle + "offsetz: "+(String)this->offsetZAngle;
-//		Serial.println(offsetTemp);
+	recalcOffsets();
 }
 
 Sensor_IMU::~Sensor_IMU() {
@@ -53,12 +61,11 @@ IMUData Sensor_IMU::getData(){
 	IMUData returnData;
 
 	this->counter ++;
-	this->counter = (this->counter)%(this->maxNumData);
-	String temp = "Counter: "+ (int) this->counter;
-	Serial.println(temp);
+	int tempint = this->counter;
+	this->counter = (int)((tempint)%(this->maxNumData));
+
 	if(this->numData < this->maxNumData)
 		this->numData += 1;
-
 
 	this->dataBuffer[this->counter].timeStamp = millis();
 	this->dataBuffer[this->counter].accel[0] = (this->IMU)->getAccX();
@@ -123,4 +130,30 @@ void Sensor_IMU::printData(IMUData data){
 	Serial.print(", ");
 	Serial.println(data.timeStamp);
 }
+/*
+ * Return 2 if on wall and desecending
+ * Return 1 if on wall and ascending
+ * Return 0 if not on wall
+ */
+int Sensor_IMU::onWall(){
+	Serial.println("Inside onWall");
+
+	IMUData data = this->getData();
+	printData(data);
+
+	Serial.println(this->offsetXAngle);
+	Serial.println(this->offsetXAngle + 90);
+	Serial.println(this->offsetXAngle + 180);
+
+
+	if(data.angle[0] > this->offsetXAngle && data.angle[0] < this->offsetXAngle ){
+		return 1;
+	}
+	else if(data.angle[0] > this->offsetXAngle + 90 && data.angle[0] < this->offsetXAngle + 180){
+		return 2;
+	}
+	else
+		return 0;
+}
+
 
