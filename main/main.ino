@@ -33,7 +33,7 @@ const int BWD = 0;
 const int FWD = 1;
 const double ALIGN_TOL = 0.5;
 const int WALL_DIST = 2000; // in mm
-const int TARGET_TOL = 50;
+const int TARGET_TOL = 200;
 const int REQ_OBJ_DETECTIONS = 5;
 
 const int MS_ROTATE = 200;
@@ -94,7 +94,7 @@ void setup() {
     while(1);
   }
 
-//  locateTarget();
+  locateTarget();
 
   // SET MOTOR SPEEDS
 //  setLeftMotor (FWD, 250);
@@ -103,8 +103,8 @@ void setup() {
 
 void loop() {
 
-double sideTofReading = getMeasurements(3);
-Serial.print((String)sideTofReading);
+//double sideTofReading = getMeasurements(3);
+//Serial.println((String)sideTofReading);
 }
 
 // MOTOR CONTROL
@@ -180,7 +180,7 @@ void locateTarget() {
 
   // buffer for TOF readings
   int size_tof_buf = 10;
-  double tofReadings[size_tof_buf];
+  double tofReadings[size_tof_buf] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   bool foundTarget = false;
   
@@ -189,8 +189,13 @@ void locateTarget() {
 
   // until object detected
   double sideTofReading = 0;
+
+  for (int i = 0; i < size_tof_buf; i++) {
+    sideTofReading = getMeasurements(3);
+    addToBuffer(tofReadings, size_tof_buf, sideTofReading);
+  }
+  
   while(!foundTarget) {
-    Serial.print("bork");
     sideTofReading = getMeasurements(3);
     addToBuffer(tofReadings, size_tof_buf, sideTofReading);
     printArr(tofReadings, size_tof_buf);
@@ -198,7 +203,7 @@ void locateTarget() {
     delay(100);
   }
 
-  // stop motors
+  // stop motors  
   stopMotors();
   Serial.println("Detected target!");
 }
@@ -219,8 +224,10 @@ bool detectTarget(double data[], int size_data) {
 }
 
 void printArr(double arr[], int size_arr){
+  Serial.print("ARR: ");
   for (int i = 0; i < size_arr; i++) {
-    Serial.print(String(arr[i]) + " ");
+    Serial.print(arr[i]);
+    Serial.print(" ");
   }
   Serial.println();
 }
