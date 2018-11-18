@@ -36,7 +36,9 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "SparkFun_VL53L1X_Arduino_Library.h"
+//#include "SparkFun_VL53L1X_Arduino_Library.h"
+#include "VL53L1X.h" //TOF
+
 
 //This is 135 bytes to be written every time to the VL53L1X to initiate a measurement
 //0x29 is written to memory location 0x01, which is the register for the I2C address which

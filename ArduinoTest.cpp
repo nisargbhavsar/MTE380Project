@@ -1,14 +1,17 @@
 #include <Arduino.h>
-
 #include <Wire.h>
 
 //Sensor Libraries
-//#include "VL53L1X.h" //TOF
-#include "SparkFun_VL53L1X_Arduino_Library.h"
+#include "VL53L1X.h" //TOF
+//#include "SparkFun_VL53L1X_Arduino_Library.h"
 #include "MPU6050_tockn.h" //IMU
 #include "SensorIMU.h"
 #include "AFMotor.h"
 #include "ST_HW_HC_SR04.h"
+
+#define encoder0PinA  2
+#define encoder0PinB  3
+
 
 //Function Prototypes
 double getUltrasonicReading(ST_HW_HC_SR04*, int);
@@ -24,12 +27,18 @@ void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopLeftMotor();
 void stopRightMotor();
 
+void doEncoderA();
+void doEncoderB();
+
 const int ROT_SPEED = 60;
 
 const int BWD = 0;
 const int FWD = 1;
 const double ALIGN_TOL = 0.5;
 const int MS_ROTATE = 200;
+
+volatile unsigned int encoder0Pos = 0;
+
 
 VL53L1X TOF;
 Sensor_IMU IMU;
@@ -47,20 +56,23 @@ float offsetXAngle=0, offsetYAngle=0, offsetZAngle=0;
 int RightMotorDir = 12, RightMotorBrake = 9, LeftMotorDir = 13, LeftMotorBrake = 8, RightMotorSpeed = 3, LeftMotorSpeed = 11;
 
 //0,1,2,4,7,10
+
+
 void setup() {
 	Serial.begin(115200);
     while(!Serial); // Wait for the Serial connection;
 	Wire.begin();
 
 	Wire.setClock(400000); // use 400 kHz I2C
-	TOF.begin();
+//	TOF.begin();
 	//Serial.println("IMU Object Test");
 
 	//IMU.initialize();
 
+	//ULTRASONICS
 	 // TRIG = 1, ECHO= 0
-	UltrasonicLeft1 = new ST_HW_HC_SR04(10, 7);
-	UltrasonicLeft2 = new ST_HW_HC_SR04(4, 2);
+	//UltrasonicLeft1 = new ST_HW_HC_SR04(10, 7);
+	//UltrasonicLeft2 = new ST_HW_HC_SR04(4, 2);
 
 	//delay(1000);
 
@@ -70,6 +82,7 @@ void setup() {
 
 	startMillis = millis();  //initial start time
 
+	//MOTOR CONTROLLER PIN SETUP
 	pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
 	pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
 
@@ -77,12 +90,25 @@ void setup() {
 	pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
 	pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
 
-//	setLeftMotor (FWD,255);
-//	setRightMotor(FWD,255);
+	setLeftMotor (FWD,200);
+	setRightMotor(FWD,200);
 
 	//String temp = "Aligning to wall";
 	//Serial.println(temp);
 	//alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
+
+	//ENCODER SETUP
+	pinMode(encoder0PinA, INPUT);
+	pinMode(encoder0PinB, INPUT);
+
+	// encoder pin on interrupt 0 (pin 2)
+	attachInterrupt(digitalPinToInterrupt(encoder0PinA), doEncoderA, CHANGE);
+
+	// encoder pin on interrupt 1 (pin 3)
+	attachInterrupt(digitalPinToInterrupt(encoder0PinB), doEncoderB, CHANGE);
+
+	Serial.begin (9600);
+
 }
 
 
@@ -416,3 +442,57 @@ void stopRightMotor(){
 	setRightMotor(FWD, 0);
 	digitalWrite(RightMotorBrake, HIGH);
 }
+
+void doEncoderA() {
+  // look for a low-to-high on channel A
+  if (digitalRead(encoder0PinA) == HIGH) {
+
+    // check channel B to see which way encoder is turning
+    if (digitalRead(encoder0PinB) == LOW) {
+      encoder0Pos = encoder0Pos + 1;         // CW
+    }
+    else {
+      encoder0Pos = encoder0Pos - 1;         // CCW
+    }
+  }
+
+  else   // must be a high-to-low edge on channel A
+  {
+    // check channel B to see which way encoder is turning
+    if (digitalRead(encoder0PinB) == HIGH) {
+      encoder0Pos = encoder0Pos + 1;          // CW
+    }
+    else {
+      encoder0Pos = encoder0Pos - 1;          // CCW
+    }
+  }
+  Serial.println (encoder0Pos, DEC);
+  // use for debugging - remember to comment out
+}
+
+void doEncoderB() {
+  // look for a low-to-high on channel B
+  if (digitalRead(encoder0PinB) == HIGH) {
+
+    // check channel A to see which way encoder is turning
+    if (digitalRead(encoder0PinA) == HIGH) {
+      encoder0Pos = encoder0Pos + 1;         // CW
+    }
+    else {
+      encoder0Pos = encoder0Pos - 1;         // CCW
+    }
+  }
+
+  // Look for a high-to-low on channel B
+
+  else {
+    // check channel B to see which way encoder is turning
+    if (digitalRead(encoder0PinA) == LOW) {
+      encoder0Pos = encoder0Pos + 1;          // CW
+    }
+    else {
+      encoder0Pos = encoder0Pos - 1;          // CCW
+    }
+  }
+}
+
