@@ -20,6 +20,8 @@ public:
 	void initialize();
 	void printDataBuffer();
 	void printData(IMUData);
+	int onWall();
+	void recalcOffsets();
 
 	static const int maxNumData = 5;
 	MPU6050* IMU;
