@@ -3,7 +3,8 @@
 #include <Wire.h>
 
 //Sensor Libraries
-#include "VL53L1X.h" //TOF
+//#include "VL53L1X.h" //TOF
+#include "SparkFun_VL53L1X_Arduino_Library.h"
 #include "MPU6050_tockn.h" //IMU
 #include "SensorIMU.h"
 #include "AFMotor.h"
@@ -37,9 +38,6 @@ ST_HW_HC_SR04* UltrasonicLeft1;
 ST_HW_HC_SR04* UltrasonicLeft2;
 
 
-AF_DCMotor rightMotor(4); //right
-AF_DCMotor leftMotor(3); //left
-
 unsigned long startMillis = 0, currMillis = 0, deltaMillis = 0, IMU_lastReadTime = 0, lastAlignTime = 0;  //some global variables available anywhere in the program
 float testZ;
 int hitTime;
@@ -55,7 +53,7 @@ void setup() {
 	Wire.begin();
 
 	Wire.setClock(400000); // use 400 kHz I2C
-
+	TOF.begin();
 	//Serial.println("IMU Object Test");
 
 	//IMU.initialize();
@@ -82,16 +80,23 @@ void setup() {
 //	setLeftMotor (FWD,255);
 //	setRightMotor(FWD,255);
 
-	String temp = "Aligning to wall";
-	Serial.println(temp);
-	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
+	//String temp = "Aligning to wall";
+	//Serial.println(temp);
+	//alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 }
 
 
 void loop(void)
 {
-	delay(1000);
-	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
+	while (TOF.newDataReady() == false)
+		delay(5);
+
+	int distance = TOF.getDistance(); //Get the result of the measurement from the sensor
+
+	Serial.print("Distance(mm): ");
+	Serial.print(distance);
+
+	//	alignToWallWithTwo(UltrasonicLeft1, UltrasonicLeft2);
 //	currMillis = millis();
 //	deltaMillis = currMillis - startMillis;
 //
@@ -119,50 +124,50 @@ void loop(void)
 
 void turn90Deg(bool isLeft){
 	// set motor speeds
-	leftMotor.setSpeed(0);
-	rightMotor.setSpeed(0);
-
-	float TOL = 1, currZ = 0, initZ = 0;
-	IMUData data;
-	for (int i = 0; i < 10; i++) {
-		data = IMU.getData();
-	//	Serial.print(IMU->getAngleZ());
-	//	Serial.print(", ");
-		initZ += data.angle[2];
-	}
-	initZ /= 10;
-	currZ = initZ;
-
-
-	if (isLeft) {
-		leftMotor.run(BACKWARD);
-		rightMotor.run(FORWARD);
-	}
-	else {
-		leftMotor.run(FORWARD);
-		rightMotor.run(BACKWARD);
-	}
-
-	leftMotor.setSpeed(100);
-	rightMotor.setSpeed(100);
-
-	while(abs(abs(currZ-initZ) - 90) > TOL) {
-		delay(100);
-		data = IMU.getData();
-
-		currZ = data.gyro[2];
-
-		float currX = data.gyro[0];
-		float currY = data.gyro[1];
-		String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
-		Serial.println(currOrientation);
-	}
-
-	// set motor speeds
-	leftMotor.run(FORWARD);
-	rightMotor.run(FORWARD);
-	leftMotor.setSpeed(0);
-	rightMotor.setSpeed(0);
+//	leftMotor.setSpeed(0);
+//	rightMotor.setSpeed(0);
+//
+//	float TOL = 1, currZ = 0, initZ = 0;
+//	IMUData data;
+//	for (int i = 0; i < 10; i++) {
+//		data = IMU.getData();
+//	//	Serial.print(IMU->getAngleZ());
+//	//	Serial.print(", ");
+//		initZ += data.angle[2];
+//	}
+//	initZ /= 10;
+//	currZ = initZ;
+//
+//
+//	if (isLeft) {
+//		leftMotor.run(BACKWARD);
+//		rightMotor.run(FORWARD);
+//	}
+//	else {
+//		leftMotor.run(FORWARD);
+//		rightMotor.run(BACKWARD);
+//	}
+//
+//	leftMotor.setSpeed(100);
+//	rightMotor.setSpeed(100);
+//
+//	while(abs(abs(currZ-initZ) - 90) > TOL) {
+//		delay(100);
+//		data = IMU.getData();
+//
+//		currZ = data.gyro[2];
+//
+//		float currX = data.gyro[0];
+//		float currY = data.gyro[1];
+//		String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+//		Serial.println(currOrientation);
+//	}
+//
+//	// set motor speeds
+//	leftMotor.run(FORWARD);
+//	rightMotor.run(FORWARD);
+//	leftMotor.setSpeed(0);
+//	rightMotor.setSpeed(0);
 
 }
 
