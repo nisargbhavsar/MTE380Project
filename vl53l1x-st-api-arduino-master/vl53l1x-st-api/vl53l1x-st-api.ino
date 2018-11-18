@@ -78,7 +78,7 @@ void setup()
   status = VL53L1_StaticInit(Dev);
   status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_MEDIUM);
   status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 50000);
-  status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 50); // reduced to 50 ms from 500 ms in ST example
+  status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 100); // reduced to 50 ms from 500 ms in ST example
   status = VL53L1_StartMeasurement(Dev);
 
   if(status)
