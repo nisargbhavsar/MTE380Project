@@ -5,7 +5,6 @@
 #include "VL53L1X.h" //TOF
 #include "MPU6050_tockn.h" //IMU
 #include "SensorIMU.h"
-#include "AFMotor.h"
 #include "ST_HW_HC_SR04.h"
 #include "vl53l1_api.h"
 
@@ -24,6 +23,7 @@ void locateTarget();
 bool detectTarget(double, int);
 void printArr(double arr[], int size_arr);
 void stopMotors();
+void transition_wall();
 double getMeasurements(int);
 
 // CONSTANTS
@@ -35,6 +35,8 @@ const double ALIGN_TOL = 0.5;
 const int WALL_DIST = 2000; // in mm
 const int TARGET_TOL = 50;
 const int REQ_OBJ_DETECTIONS = 5;
+Sensor_IMU IMU;
+
 
 const int MS_ROTATE = 200;
 int RightMotorDir = 12, RightMotorBrake = 9, RightMotorSpeed = 3;
@@ -50,6 +52,7 @@ void setup() {
 
   Wire.setClock(400000); // use 400 kHz I2C
 
+  IMU.initialize();
   //MOTOR CONTROLLER PIN SETUP
   pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
   pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
@@ -91,7 +94,8 @@ void setup() {
   if(status)
   {
     Serial.println(F("VL53L1_StartMeasurement failed"));
-    while(1);
+    
+    //while(1);
   }
 
 //  locateTarget();
@@ -103,8 +107,12 @@ void setup() {
 
 void loop() {
 
-double sideTofReading = getMeasurements(3);
-Serial.print((String)sideTofReading);
+//double sideTofReading = getMeasurements(3);
+//Serial.print((String)sideTofReading);
+Serial.print("LOOP");
+transition_wall();
+
+
 }
 
 // MOTOR CONTROL
@@ -190,10 +198,9 @@ void locateTarget() {
   // until object detected
   double sideTofReading = 0;
   while(!foundTarget) {
-    Serial.print("bork");
     sideTofReading = getMeasurements(3);
     addToBuffer(tofReadings, size_tof_buf, sideTofReading);
-    printArr(tofReadings, size_tof_buf);
+    //printArr(tofReadings, size_tof_buf);
     foundTarget = detectTarget(tofReadings, size_tof_buf);
     delay(100);
   }
@@ -231,3 +238,26 @@ void addToBuffer(double data[], int size_arr, double new_data){
   }
   data[size_arr - 1] = new_data;
 }
+void transition_wall(){
+  
+  int returnval = IMU.onWall();
+     Serial.print("returnVAlue");
+     Serial.println(returnval);
+     delay(500);
+     
+     if (returnval == 1){
+        Serial.println("Going up the Wall");
+        stopLeftMotor();
+        stopRightMotor();
+        
+      }
+     else if(returnval == 2){
+        Serial.println("Going down the Wall");
+        stopLeftMotor();
+        stopRightMotor();
+      }
+      else{
+        Serial.println("Going straight");
+        }
+
+  }
