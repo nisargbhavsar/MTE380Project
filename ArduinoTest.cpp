@@ -23,6 +23,9 @@ void alignToWallWithTwo(ST_HW_HC_SR04*, ST_HW_HC_SR04*);
 void turn90Deg(bool);
 
 //void setMotorSpeeds(int rightMotorDir, int rightMotorSpeed, int leftMotorDir, int leftMotorSpeed);
+void intializeArduinoMotorControllerPins();
+void intializeL289NMotorShield();
+
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed);
 void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopLeftMotor();
@@ -35,6 +38,7 @@ const int ROT_SPEED = 255;
 
 const int BWD = 0;
 const int FWD = 1;
+#define ROTATE_TOL 1
 const double ALIGN_TOL = 0.5;
 const int MS_ROTATE = 200;
 
@@ -53,21 +57,43 @@ float testZ;
 int hitTime;
 float offsetXAngle=0, offsetYAngle=0, offsetZAngle=0;
 
-// Right and left motors
+/*
+ * Right and left motors for Arduino MotorShield
+ * Unused pins with Arduino Motorcontroller
+ * 0,1,2,4,7,10
+ */
 int RightMotorDir = 12, RightMotorBrake = 9, LeftMotorDir = 13, LeftMotorBrake = 8, RightMotorSpeed = 3, LeftMotorSpeed = 11;
+// connect motor controller pins to Arduino digital pins
 
-//Unused pins
-//0,1,2,4,7,10
+//Pin definitions for L289N MotorShield
+/*
+ * RightMotorEnable = enA
+ * RightMotorDir1 = in1
+ * RightMotorDir2 = in2
+ *
+ * LeftMotorEnable = enB
+ * LeftMotorDir1 = in3
+ * LeftMotorDir2 = in4
+ */
+int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 5, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
+
 
 
 void setup() {
+	//MOTOR CONTROLLER PIN SETUP
+	//intializeArduinoMotorControllerPins();
+
+	intializeL289NMotorShield();
+	stopRightMotor();
+	stopLeftMotor();
+
 	Serial.begin(115200);
     while(!Serial); // Wait for the Serial connection;
 	Wire.begin();
 
 	Wire.setClock(400000); // use 400 kHz I2C
 //	TOF.begin();
-	Serial.println("IMU Wall Orientation Test");
+	//Serial.println("IMU Turning 90 Deg Test");
 
 	IMU.initialize();
 
@@ -84,18 +110,9 @@ void setup() {
 
 	startMillis = millis();  //initial start time
 
-	//MOTOR CONTROLLER PIN SETUP
-	pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
-	pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
-	stopRightMotor();
 
-	//Setup Channel B
-	pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
-	pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
-	stopLeftMotor();
-//
-//	setLeftMotor (FWD,100);
-//	setRightMotor(FWD,100);
+	setLeftMotor (BWD,250);
+	setRightMotor(BWD,100);
 
 	//String temp = "Aligning to wall";
 	//Serial.println(temp);
@@ -107,15 +124,15 @@ void setup() {
 
 }
 
-	bool test = 0;
+bool test = 0;
 
 void loop(void)
 {
-	delay(500);
-	IMU.recalcOffsets();
-	//Serial.println(IMU.onWall());
-	turn90Deg(test);
-	test = !test;
+//	delay(2000);
+//	IMU.recalcOffsets();
+//	delay(100);
+//	turn90Deg(test);
+//	test = !test;
 
 //	while (TOF.newDataReady() == false)
 //		delay(5);
@@ -154,12 +171,15 @@ void loop(void)
 void turn90Deg(bool isLeft){
 	stopLeftMotor();
 	stopRightMotor();
+	delay(MS_ROTATE);
 
-	if(isLeft)
-		Serial.println("Turning Left");
-	else
-		Serial.println("Turning Right");
-	float TOL = 1, currZ = 0, initZ = 0;
+//	if(isLeft)
+//		Serial.println("Turning Left");
+//	else
+//		Serial.println("Turning Right");
+
+	float currZ = 0, initZ = 0;
+
 	IMUData data;
 	for (int i = 0; i < 10; i++) {
 		data = IMU.getData();
@@ -179,13 +199,12 @@ void turn90Deg(bool isLeft){
 		setRightMotor(BWD, ROT_SPEED);
 	}
 	String temp;
-	while(abs(abs(currZ-initZ) - 90) > TOL*2) {
-		delay(300);
+	while((abs(currZ-initZ) - 90) < (ROTATE_TOL*2)) {
+		delay(MS_ROTATE);
 		data = IMU.getData();
-
-		//maybe change to:
 		currZ = data.angle[2];
-		//currZ = data.gyro[2];
+	//maybe change to:
+//currZ = data.gyro[2];
 //		temp = "CurrZ: " + (String) currZ;
 //		Serial.println(temp);
 //		temp = "initZ: " + (String) initZ;
@@ -425,24 +444,50 @@ double getUltrasonicReading(ST_HW_HC_SR04* sensor, int numRead){
 }
 
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed){
-  digitalWrite(LeftMotorDir, leftMotorDir);
-  digitalWrite(LeftMotorBrake, LOW);
-  analogWrite(LeftMotorSpeed, leftMotorSpeed);
+//  digitalWrite(LeftMotorDir, leftMotorDir);
+//  digitalWrite(LeftMotorBrake, LOW);
+//  analogWrite(LeftMotorSpeed, leftMotorSpeed);
+
+	// this function will run the LeftMotor
+	if(leftMotorDir == 0){
+		digitalWrite(LeftMotorDir1, LOW);
+		digitalWrite(LeftMotorDir2, HIGH);
+	}
+	else{
+		digitalWrite(LeftMotorDir1, HIGH);
+		digitalWrite(LeftMotorDir2, LOW);
+	}
+	// set speed out of possible range 0~255
+	int speed = leftMotorSpeed%255;
+	analogWrite(LeftMotorEnable, speed);
 }
 
 void setRightMotor(int rightMotorDir, int rightMotorSpeed){
-  digitalWrite(RightMotorDir, rightMotorDir);
-  digitalWrite(RightMotorBrake, LOW);
-  analogWrite(RightMotorSpeed, rightMotorSpeed);
+//  digitalWrite(RightMotorDir, rightMotorDir);
+//  digitalWrite(RightMotorBrake, LOW);
+//  analogWrite(RightMotorSpeed, rightMotorSpeed);
+
+	// this function will run the LeftMotor
+	if(rightMotorDir == 0){
+		digitalWrite(RightMotorDir1, LOW);
+		digitalWrite(RightMotorDir2, HIGH);
+	}
+	else{
+		digitalWrite(RightMotorDir1, HIGH);
+		digitalWrite(RightMotorDir2, LOW);
+	}
+	// set speed out of possible range 0~255
+	int speed = rightMotorSpeed%255;
+	analogWrite(RightMotorEnable, speed);
 }
 
 void stopLeftMotor() {
 	setLeftMotor(FWD, 0);
-	digitalWrite(LeftMotorBrake, HIGH);
+	//digitalWrite(LeftMotorBrake, HIGH);
 }
 void stopRightMotor(){
 	setRightMotor(FWD, 0);
-	digitalWrite(RightMotorBrake, HIGH);
+	//digitalWrite(RightMotorBrake, HIGH);
 }
 
 void doEncoderA() {
@@ -503,3 +548,20 @@ void doEncoder(){
 	Serial.println( encoder.getPosition() );
 }
 
+void intializeArduinoMotorControllerPins() {
+	//MOTOR CONTROLLER PIN SETUP
+	pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
+	pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+	//Setup Channel B
+	pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
+	pinMode(LeftMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+}
+
+void intializeL289NMotorShield() {
+	pinMode(RightMotorEnable, OUTPUT);
+	pinMode(LeftMotorEnable, OUTPUT);
+	pinMode(RightMotorDir1, OUTPUT);
+	pinMode(RightMotorDir2, OUTPUT);
+	pinMode(LeftMotorDir1, OUTPUT);
+	pinMode(LeftMotorDir2, OUTPUT);
+}
