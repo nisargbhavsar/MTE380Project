@@ -60,6 +60,7 @@ int status;
 int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 5, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
 
 ST_HW_HC_SR04* UltrasonicFront;
+Sensor_IMU IMU;
 
 void setup() {
   intializeL289NMotorShield();
@@ -71,6 +72,7 @@ void setup() {
   Wire.begin();
 
   Wire.setClock(400000); // use 400 kHz I2C
+  IMU.initialize();
 
   //MOTOR CONTROLLER PIN SETUP
   pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
@@ -134,22 +136,22 @@ void loop() {
 //  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
 //  correctOrientation();
 //
-//  // Get on wall
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while ();
-//  stopMotors();
-//
-//  // Get over wall
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (!onHump());
-//  driveStraight(FWD, DOWN_HUMP_SPEED);
-//  while (!facingDown());
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while(facingDown());
-//  stopMotors();
-//
+  // Get on wall
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() != FACING_UP);
+  stopMotors();
+
+  // Get over wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() != FACING_STRAIGHT);
+  driveStraight(FWD, DOWN_HUMP_SPEED);
+  while (IMU.onWall() != FACING_DOWN);
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() == FACING_DOWN);
+  stopMotors();
+
 //  // get to initial target searching position
 //  correctOrientation();
 //  rotate90Deg(LEFT);

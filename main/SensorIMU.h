@@ -13,18 +13,20 @@ class MPU6050;
 
 class Sensor_IMU{
 public:
-	Sensor_IMU();
-	virtual ~Sensor_IMU();
+  Sensor_IMU();
+  virtual ~Sensor_IMU();
 
-	IMUData getData();
-	void initialize();
-	void printDataBuffer();
-	void printData(IMUData);
+  IMUData getData();
+  void initialize();
+  void printDataBuffer();
+  void printData(IMUData);
+  int onWall();
+  void recalcOffsets();
 
-	static const int maxNumData = 5;
-	MPU6050* IMU;
-	IMUData* dataBuffer;
-	int counter, numData;
-	float offsetXAngle,offsetYAngle,offsetZAngle;
+  static const int maxNumData = 5;
+  MPU6050* IMU;
+  IMUData* dataBuffer;
+  int counter, numData;
+  float offsetXAngle,offsetYAngle,offsetZAngle;
 };
 #endif /* SENSORIMU_H_ */
