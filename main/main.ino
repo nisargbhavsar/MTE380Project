@@ -112,8 +112,6 @@ void setup() {
 //    while(1);
   }
 
-  locateTarget();
-
   // SET MOTOR SPEEDS
   //  setLeftMotor (FWD, 250);
   //  setRightMotor(FWD, 250);
@@ -127,83 +125,83 @@ void loop() {
 
   // OVERALL MISSION CONTROL
 
-  // Get to wall
-  correctOrientation();
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 1710); //  distance from middle of metal wall to side wall
-  rotate90Deg(RIGHT);
-  correctOrientation();
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
-  correctOrientation();
-
-  // Get on wall
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (!facingUp());
-  stopMotors();
-
-  // Get over wall
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (!onHump());
-  driveStraight(FWD, DOWN_HUMP_SPEED);
-  while (!facingDown());
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while(facingDown());
-  stopMotors();
-
-  // get to initial target searching position
-  correctOrientation();
-  rotate90Deg(LEFT);
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
-  delay(500);
-  stopMotors();
-  rotate90Deg(RIGHT);
-  correctOrientation();
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
-
-  // locate target
-  locateTarget();
-  rotate90Deg(RIGHT);
+//  // Get to wall
+//  correctOrientation();
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 1710); //  distance from middle of metal wall to side wall
+//  rotate90Deg(RIGHT);
+//  correctOrientation();
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
+//  correctOrientation();
+//
+//  // Get on wall
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (!facingUp());
+//  stopMotors();
+//
+//  // Get over wall
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (!onHump());
+//  driveStraight(FWD, DOWN_HUMP_SPEED);
+//  while (!facingDown());
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while(facingDown());
+//  stopMotors();
+//
+//  // get to initial target searching position
+//  correctOrientation();
+//  rotate90Deg(LEFT);
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
+//  delay(500);
+//  stopMotors();
+//  rotate90Deg(RIGHT);
+//  correctOrientation();
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
+//
+//  // locate target
+//  locateTarget();
+//  rotate90Deg(RIGHT);
 
   // get to target
   chaseDownTarget();
 
-  // get back to wall
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
-  rotate90Deg(RIGHT);
-  driveStraight(FWD, MAX_MOTOR_SPEED); 
-  rotate90Deg(LEFT);
-  correctOrientation();
-
-  // Get on wall
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (!facingUp());
-  stopMotors();
-
-  // Get over wall
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (!onHump());
-  driveStraight(FWD, DOWN_HUMP_SPEED);
-  while (!facingDown());
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while(facingDown());
-  stopMotors();
-
-  // get back onto initial base
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  stopMotors();
-  delay(500);
-  rotate90Deg(LEFT);
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  delay(2000);
-  stopMotors(); 
-
-  delay(10000);
+//  // get back to wall
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
+//  rotate90Deg(RIGHT);
+//  driveStraight(FWD, MAX_MOTOR_SPEED); 
+//  rotate90Deg(LEFT);
+//  correctOrientation();
+//
+//  // Get on wall
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (!facingUp());
+//  stopMotors();
+//
+//  // Get over wall
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (!onHump());
+//  driveStraight(FWD, DOWN_HUMP_SPEED);
+//  while (!facingDown());
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while(facingDown());
+//  stopMotors();
+//
+//  // get back onto initial base
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  stopMotors();
+//  delay(500);
+//  rotate90Deg(LEFT);
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  delay(2000);
+//  stopMotors(); 
+//
+//  delay(10000);
 }
 
 // MOTOR CONTROL
@@ -403,6 +401,18 @@ void chaseDownTarget() {
 }
 
 // HELPER FUNCTIONS
+
+double getUltrasonicReading(ST_HW_HC_SR04* sensor, int numRead){
+  double returnVal = 0;
+  int hitTime = 0;
+
+  for (int i = 0; i < numRead;  i++){
+    hitTime = sensor->getHitTime();
+    returnVal += (double)(hitTime / 29.1);
+  }
+  returnVal /= numRead;
+  return returnVal;
+}
 
 // read in a buffer of last 10 TOF scans; return true if target detected
 bool detectTarget(double data[], int size_data) {
