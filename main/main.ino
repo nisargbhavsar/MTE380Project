@@ -16,6 +16,7 @@ void rotate90Deg(int);
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed);
 void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopMotorsXYZ();
+ 
 void stopLeftMotor();
 void stopRightMotor();
 void driveStraight(int, int);
@@ -132,88 +133,88 @@ void loop() {
   // OVERALL MISSION CONTROL
 
 //  // Get to wall
-//  correctOrientation();
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 1710); //  distance from middle of metal wall to side wall
-//  rotate90Deg(RIGHT);
-//  correctOrientation();
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
-//  correctOrientation();
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 1710); //  distance from middle of metal wall to side wall
+  rotate90Deg(RIGHT);
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
+  correctOrientation();
 //
-//  // Get on wall
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (IMU.onWall() != FACING_UP);
-//  Serial.println("now facing up");
-//  stopLeftMotor();
-//  stopRightMotor();
+  // Get on wall
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() != FACING_UP);
+  Serial.println("now facing up");
+  stopLeftMotor();
+  stopRightMotor();
 
-//  // Get over wall
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (IMU.onWall() != FACING_STRAIGHT);
-//  Serial.println("now facing straight");
-//  driveStraight(FWD, DOWN_HUMP_SPEED);
-//  while (IMU.onWall() != FACING_DOWN);
-//  Serial.println("now facing down");
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (IMU.onWall() == FACING_DOWN);
-//  Serial.println("now facing down");
-//  stopLeftMotor();
-//  stopRightMotor();
+  // Get over wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() != FACING_STRAIGHT);
+  Serial.println("now facing straight");
+  driveStraight(FWD, DOWN_HUMP_SPEED);
+  while (IMU.onWall() != FACING_DOWN);
+  Serial.println("now facing down");
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (IMU.onWall() == FACING_DOWN);
+  Serial.println("now facing down");
+  stopLeftMotor();
+  stopRightMotor();
 
 
 //  // get to initial target searching position
 //  correctOrientation();
   rotate90Deg(LEFT);
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
-//  delay(500);
-//  stopMotors();
-//  rotate90Deg(RIGHT);
-//  correctOrientation();
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
+  delay(500);
+  stopMotorsXYZ();
+  rotate90Deg(RIGHT);
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
 //
 //  // locate target
-//  locateTarget();
-//  rotate90Deg(RIGHT);
+  locateTarget();
+  rotate90Deg(RIGHT);
 
 //  // get to target
-//  chaseDownTarget();
+  chaseDownTarget();
 
 //  // get back to wall
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
-//  rotate90Deg(RIGHT);
-//  driveStraight(FWD, MAX_MOTOR_SPEED); 
-//  rotate90Deg(LEFT);
-//  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
+  rotate90Deg(RIGHT);
+  driveStraight(FWD, MAX_MOTOR_SPEED); 
+  rotate90Deg(LEFT);
+  correctOrientation();
 //
 //  // Get on wall
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (!facingUp());
-//  stopMotors();
-//
-//  // Get over wall
-//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (!onHump());
-//  driveStraight(FWD, DOWN_HUMP_SPEED);
-//  while (!facingDown());
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while(facingDown());
-//  stopMotors();
-//
-//  // get back onto initial base
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  stopMotors();
-//  delay(500);
-//  rotate90Deg(LEFT);
-//  correctOrientation();
-//  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  delay(2000);
-//  stopMotors(); 
-//
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!facingUp());
+  stopMotorsXYZ();
+
+  // Get over wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!onHump());
+  driveStraight(FWD, DOWN_HUMP_SPEED);
+  while (!facingDown());
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while(facingDown());
+  stopMotorsXYZ();
+
+  // get back onto initial base
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  stopMotorsXYZ();
+  delay(500);
+  rotate90Deg(LEFT);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  delay(2000);
+  stopMotorsXYZ(); 
+
   delay(10000);
 }
 
@@ -489,3 +490,7 @@ void rotate90Deg(int isLeft){
   stopLeftMotor();
   stopRightMotor();
 }
+
+bool facingUp(){}
+bool onHump(){}
+bool facingDown(){}
