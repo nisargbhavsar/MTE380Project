@@ -54,8 +54,15 @@ int LeftMotorDir = 13, LeftMotorBrake = 8, LeftMotorSpeed = 11;
 VL53L1_Dev_t                   dev;
 VL53L1_DEV                     Dev = &dev;
 int status;
+int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 5, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
+
+ST_HW_HC_SR04* UltrasonicFront;
 
 void setup() {
+  intializeL289NMotorShield();
+  stopLeftMotor();
+  stopRightMotor();
+  
   Serial.begin(115200);
   while(!Serial); // Wait for the Serial connection;
   Wire.begin();
@@ -103,7 +110,7 @@ void setup() {
   if(status)
   {
     Serial.println(F("VL53L1_StartMeasurement failed"));
-    while(1);
+//    while(1);
   }
 
   locateTarget();
@@ -202,24 +209,41 @@ void loop() {
 
 // MOTOR CONTROL
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed){
-  digitalWrite(LeftMotorDir, leftMotorDir);
-  digitalWrite(LeftMotorBrake, LOW);
-  analogWrite(LeftMotorSpeed, leftMotorSpeed);
+  if(leftMotorDir == 0){
+     digitalWrite(LeftMotorDir1, LOW);
+    digitalWrite(LeftMotorDir2, HIGH);
+  }
+  else{
+    digitalWrite(LeftMotorDir1, HIGH);
+    digitalWrite(LeftMotorDir2, LOW);
+  }
+  // set speed out of possible range 0~255
+  int speed = leftMotorSpeed%255;
+  analogWrite(LeftMotorEnable, speed);
 }
 
 void setRightMotor(int rightMotorDir, int rightMotorSpeed){
-  digitalWrite(RightMotorDir, rightMotorDir);
-  digitalWrite(RightMotorBrake, LOW);
-  analogWrite(RightMotorSpeed, rightMotorSpeed);
+  // this function will run the LeftMotor
+   if(rightMotorDir == 0){
+    digitalWrite(RightMotorDir1, LOW);
+    digitalWrite(RightMotorDir2, HIGH);
+  }
+  else{
+    digitalWrite(RightMotorDir1, HIGH);
+    digitalWrite(RightMotorDir2, LOW);
+  }
+  // set speed out of possible range 0~255
+  int speed = rightMotorSpeed%255;
+  analogWrite(RightMotorEnable, speed);
 }
 
 void stopLeftMotor() {
   setLeftMotor(FWD, 0);
-  digitalWrite(LeftMotorBrake, HIGH);
+//  digitalWrite(LeftMotorBrake, HIGH);
 }
 void stopRightMotor(){
   setRightMotor(FWD, 0);
-  digitalWrite(RightMotorBrake, HIGH);
+//  digitalWrite(RightMotorBrake, HIGH);
 }
 
 void driveStraight(int dir, int motor_speed) {
@@ -247,6 +271,25 @@ void correctOrientation() {
   // INSERT CODE HERE
 }
 
+// Motor shield
+void intializeArduinoMotorControllerPins() {
+   //MOTOR CONTROLLER PIN SETUP
+  pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+  //Setup Channel B
+  pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(LeftMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+ }
+
+ void intializeL289NMotorShield() {
+  pinMode(RightMotorEnable, OUTPUT);
+  pinMode(LeftMotorEnable, OUTPUT);
+  pinMode(RightMotorDir1, OUTPUT);
+  pinMode(RightMotorDir2, OUTPUT);
+  pinMode(LeftMotorDir1, OUTPUT);
+  pinMode(LeftMotorDir2, OUTPUT);
+ }
+ 
 // TOF
 double getMeasurements(int measurements)
 {
@@ -332,7 +375,32 @@ void locateTarget() {
 }
 
 void chaseDownTarget() {
-  
+      //Turn right to realign with initial position
+      Serial.println("start chasing");
+    delay(500);
+
+    setRightMotor(FWD, 150);
+    setLeftMotor(BWD, 150);
+    
+    delay(MS_ROTATE);
+    stopLeftMotor();
+    stopRightMotor();
+    delay(500);
+    //start go forward
+    driveStraight(FWD, 180);
+    
+
+    //stop when within the range 
+  bool reachTarget = false;
+  while(!reachTarget) {
+    int distanceTarget = getUltrasonicReading(UltrasonicFront, 5);
+    Serial.println(distanceTarget);
+    if(distanceTarget < 10){
+      reachTarget = 1;
+      }
+  }
+    stopMotors();
+  Serial.println("stopped at target!");
 }
 
 // HELPER FUNCTIONS
