@@ -14,7 +14,7 @@ double getUltrasonicReading(ST_HW_HC_SR04*, int);
 void printCurrIMUData(unsigned long);
 //void alignToWall(ST_HW_HC_SR04*);
 void alignToWallWithTwo(ST_HW_HC_SR04*, ST_HW_HC_SR04*);
-void turn90Deg(bool);
+void rotate90Deg(int);
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed);
 void setRightMotor(int rightMotorDir, int rightMotorSpeed);
 void stopLeftMotor();
@@ -25,15 +25,27 @@ bool detectTarget(double, int);
 void printArr(double arr[], int size_arr);
 void stopMotors();
 double getMeasurements(int);
+void driveStraightToDist(int dir, int motor_speed, int distance);
+void correctOrientation();
+void chaseDownTarget();
+bool onHump();
+bool facingDown();
+bool facingUp();
 
 // CONSTANTS
 const int ROT_SPEED = 60;
 const int STRAIGHT_SCANNING_SPEED = 100;
+const int STRAIGHT_SPEED = 200;
+const int MAX_MOTOR_SPEED = 255;
+const int DOWN_HUMP_SPEED = 100;
+
 const int BWD = 0;
 const int FWD = 1;
+const int RIGHT = 1;
+const int LEFT = 0;
 const double ALIGN_TOL = 0.5;
 const int WALL_DIST = 2000; // in mm
-const int TARGET_TOL = 50;
+const int TARGET_TOL = 200;
 const int REQ_OBJ_DETECTIONS = 5;
 
 const int MS_ROTATE = 200;
@@ -94,17 +106,98 @@ void setup() {
     while(1);
   }
 
-//  locateTarget();
+  locateTarget();
 
   // SET MOTOR SPEEDS
-//  setLeftMotor (FWD, 250);
-//  setRightMotor(FWD, 250);
+  //  setLeftMotor (FWD, 250);
+  //  setRightMotor(FWD, 250);
+
+  // get TOS measurementd
+  //double sideTofReading = getMeasurements(3);
+  //Serial.println((String)sideTofReading);
 }
 
 void loop() {
 
-double sideTofReading = getMeasurements(3);
-Serial.print((String)sideTofReading);
+  // OVERALL MISSION CONTROL
+
+  // Get to wall
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 1710); //  distance from middle of metal wall to side wall
+  rotate90Deg(RIGHT);
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
+  correctOrientation();
+
+  // Get on wall
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!facingUp());
+  stopMotors();
+
+  // Get over wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!onHump());
+  driveStraight(FWD, DOWN_HUMP_SPEED);
+  while (!facingDown());
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while(facingDown());
+  stopMotors();
+
+  // get to initial target searching position
+  correctOrientation();
+  rotate90Deg(LEFT);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
+  delay(500);
+  stopMotors();
+  rotate90Deg(RIGHT);
+  correctOrientation();
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
+
+  // locate target
+  locateTarget();
+  rotate90Deg(RIGHT);
+
+  // get to target
+  chaseDownTarget();
+
+  // get back to wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
+  rotate90Deg(RIGHT);
+  driveStraight(FWD, MAX_MOTOR_SPEED); 
+  rotate90Deg(LEFT);
+  correctOrientation();
+
+  // Get on wall
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!facingUp());
+  stopMotors();
+
+  // Get over wall
+  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while (!onHump());
+  driveStraight(FWD, DOWN_HUMP_SPEED);
+  while (!facingDown());
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  while(facingDown());
+  stopMotors();
+
+  // get back onto initial base
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  stopMotors();
+  delay(500);
+  rotate90Deg(LEFT);
+  correctOrientation();
+  driveStraight(FWD, MAX_MOTOR_SPEED);
+  delay(2000);
+  stopMotors(); 
+
+  delay(10000);
 }
 
 // MOTOR CONTROL
@@ -135,9 +228,23 @@ void driveStraight(int dir, int motor_speed) {
   setRightMotor(dir,motor_speed);
 }
 
+void driveStraightToDist(int dir, int motor_speed, int distance) {
+  // maintaining straightness with two back TOF to be incorporated
+  setLeftMotor (dir,motor_speed);
+  setRightMotor(dir,motor_speed);
+
+  // REPLACE THIS
+  delay(500);
+  stopMotors();
+}
+
 void stopMotors() {
   stopLeftMotor();
   stopRightMotor();
+}
+
+void correctOrientation() {
+  // INSERT CODE HERE
 }
 
 // TOF
@@ -170,17 +277,33 @@ double getMeasurements(int measurements)
   }
 
   return (rangetotal /(measurements));
+}
 
+// IMU
+bool onHump() {
+  return true;
+}
+
+bool facingDown() {
+  return true;
+}
+
+bool facingUp() {
+  return true;
+}
+
+void rotate90Deg(int dir) {
+  
 }
 
 // COURSE FUNCTIONS
 
-// drives straight and back
+// drives straight until it sees the target
 void locateTarget() {
 
   // buffer for TOF readings
   int size_tof_buf = 10;
-  double tofReadings[size_tof_buf];
+  double tofReadings[size_tof_buf] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
   bool foundTarget = false;
   
@@ -189,8 +312,13 @@ void locateTarget() {
 
   // until object detected
   double sideTofReading = 0;
+
+  for (int i = 0; i < size_tof_buf; i++) {
+    sideTofReading = getMeasurements(3);
+    addToBuffer(tofReadings, size_tof_buf, sideTofReading);
+  }
+  
   while(!foundTarget) {
-    Serial.print("bork");
     sideTofReading = getMeasurements(3);
     addToBuffer(tofReadings, size_tof_buf, sideTofReading);
     printArr(tofReadings, size_tof_buf);
@@ -198,9 +326,13 @@ void locateTarget() {
     delay(100);
   }
 
-  // stop motors
+  // stop motors  
   stopMotors();
   Serial.println("Detected target!");
+}
+
+void chaseDownTarget() {
+  
 }
 
 // HELPER FUNCTIONS
@@ -219,8 +351,10 @@ bool detectTarget(double data[], int size_data) {
 }
 
 void printArr(double arr[], int size_arr){
+  Serial.print("ARR: ");
   for (int i = 0; i < size_arr; i++) {
-    Serial.print(String(arr[i]) + " ");
+    Serial.print(arr[i]);
+    Serial.print(" ");
   }
   Serial.println();
 }
