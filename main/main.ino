@@ -35,7 +35,7 @@ bool facingUp();
 const int ROT_SPEED = 60;
 const int STRAIGHT_SCANNING_SPEED = 100;
 const int STRAIGHT_SPEED = 200;
-const int MAX_MOTOR_SPEED = 255;
+const int MAX_MOTOR_SPEED = 250;
 const int DOWN_HUMP_SPEED = 100;
 
 const int BWD = 0;
@@ -46,6 +46,10 @@ const double ALIGN_TOL = 0.5;
 const int WALL_DIST = 2000; // in mm
 const int TARGET_TOL = 200;
 const int REQ_OBJ_DETECTIONS = 5;
+
+const int FACING_UP = 1; 
+const int FACING_STRAIGHT = 0;
+const int FACING_DOWN = 2;
 
 const int MS_ROTATE = 200;
 int RightMotorDir = 12, RightMotorBrake = 9, RightMotorSpeed = 3;
@@ -79,10 +83,6 @@ void setup() {
   uint8_t byteData;
   uint16_t wordData;
 
-  Wire.begin();
-  Wire.setClock(400000);
-  Serial.begin(115200);
-
   Dev->I2cDevAddr = 0x52;
 
   VL53L1_software_reset(Dev);
@@ -113,8 +113,9 @@ void setup() {
   }
 
   // SET MOTOR SPEEDS
-  //  setLeftMotor (FWD, 250);
-  //  setRightMotor(FWD, 250);
+    setLeftMotor (FWD, MAX_MOTOR_SPEED);
+    setRightMotor(FWD, MAX_MOTOR_SPEED);
+    Serial.print("moved motors");
 
   // get TOS measurementd
   //double sideTofReading = getMeasurements(3);
@@ -135,7 +136,7 @@ void loop() {
 //
 //  // Get on wall
 //  driveStraight(FWD, MAX_MOTOR_SPEED);
-//  while (!facingUp());
+//  while ();
 //  stopMotors();
 //
 //  // Get over wall
@@ -164,8 +165,8 @@ void loop() {
 //  locateTarget();
 //  rotate90Deg(RIGHT);
 
-  // get to target
-  chaseDownTarget();
+//  // get to target
+//  chaseDownTarget();
 
 //  // get back to wall
 //  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300);
