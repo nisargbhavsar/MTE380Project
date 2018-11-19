@@ -9,6 +9,8 @@
 #include "ST_HW_HC_SR04.h"
 #include "vl53l1_api.h"
 
+#define ROTATE_TOL 1
+
 // FUNCTION PROTOTYPES
 double getUltrasonicReading(ST_HW_HC_SR04*, int);
 void printCurrIMUData(unsigned long);
@@ -31,6 +33,10 @@ void chaseDownTarget();
 bool onHump();
 bool facingDown();
 bool facingUp();
+void intializeArduinoMotorControllerPins();
+void intializeL289NMotorShield();
+
+
 
 // CONSTANTS
 const int ROT_SPEED = 60;
@@ -54,59 +60,74 @@ int LeftMotorDir = 13, LeftMotorBrake = 8, LeftMotorSpeed = 11;
 VL53L1_Dev_t                   dev;
 VL53L1_DEV                     Dev = &dev;
 int status;
+int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 5, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
+
+ST_HW_HC_SR04* UltrasonicFront;
 
 void setup() {
+  
+  intializeL289NMotorShield();
+  stopLeftMotor();
+  stopRightMotor();
+  
+
+
   Serial.begin(115200);
   while(!Serial); // Wait for the Serial connection;
   Wire.begin();
-
+  Serial.println("start!");
+  
+    //4: echo  3: trig
+  UltrasonicFront = new ST_HW_HC_SR04(4,3);
+  
   Wire.setClock(400000); // use 400 kHz I2C
 
-  //MOTOR CONTROLLER PIN SETUP
-  pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
-  pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+//  //MOTOR CONTROLLER PIN SETUP
+//  pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
+//  pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+//
+//  //Setup Channel B
+//  pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
+//  pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
 
-  //Setup Channel B
-  pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
-  pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
+//  setRightMotor(BWD,100);
+//  setLeftMotor(BWD,250);
 
   uint8_t byteData;
   uint16_t wordData;
 
-  Wire.begin();
-  Wire.setClock(400000);
-  Serial.begin(115200);
+//  Dev->I2cDevAddr = 0x52;
+//
+//  VL53L1_software_reset(Dev);
+//
+//  VL53L1_RdByte(Dev, 0x010F, &byteData);
+//  Serial.print(F("VL53L1X Model_ID: "));
+//  Serial.println(byteData, HEX);
+//  VL53L1_RdByte(Dev, 0x0110, &byteData);
+//  Serial.print(F("VL53L1X Module_Type: "));
+//  Serial.println(byteData, HEX);
+//  VL53L1_RdWord(Dev, 0x010F, &wordData);
+//  Serial.print(F("VL53L1X: "));
+//  Serial.println(wordData, HEX);
+//
+//  Serial.println(F("Autonomous Ranging Test"));
+//  status = VL53L1_WaitDeviceBooted(Dev);
+//  status = VL53L1_DataInit(Dev);
+//  status = VL53L1_StaticInit(Dev);
+//  status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_MEDIUM);
+//  status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 50000);
+//  status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 100); // reduced to 50 ms from 500 ms in ST example
+//  status = VL53L1_StartMeasurement(Dev);
+//
+//  if(status)
+//  {
+//    Serial.println(F("VL53L1_StartMeasurement failed"));
+//    while(1);
+//  }
 
-  Dev->I2cDevAddr = 0x52;
-
-  VL53L1_software_reset(Dev);
-
-  VL53L1_RdByte(Dev, 0x010F, &byteData);
-  Serial.print(F("VL53L1X Model_ID: "));
-  Serial.println(byteData, HEX);
-  VL53L1_RdByte(Dev, 0x0110, &byteData);
-  Serial.print(F("VL53L1X Module_Type: "));
-  Serial.println(byteData, HEX);
-  VL53L1_RdWord(Dev, 0x010F, &wordData);
-  Serial.print(F("VL53L1X: "));
-  Serial.println(wordData, HEX);
-
-  Serial.println(F("Autonomous Ranging Test"));
-  status = VL53L1_WaitDeviceBooted(Dev);
-  status = VL53L1_DataInit(Dev);
-  status = VL53L1_StaticInit(Dev);
-  status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_MEDIUM);
-  status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 50000);
-  status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 100); // reduced to 50 ms from 500 ms in ST example
-  status = VL53L1_StartMeasurement(Dev);
-
-  if(status)
-  {
-    Serial.println(F("VL53L1_StartMeasurement failed"));
-    while(1);
-  }
-
-  locateTarget();
+//  locateTarget();
+ Serial.println("ready to chase");
+  chaseDownTarget();
 
   // SET MOTOR SPEEDS
   //  setLeftMotor (FWD, 250);
@@ -202,24 +223,41 @@ void loop() {
 
 // MOTOR CONTROL
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed){
-  digitalWrite(LeftMotorDir, leftMotorDir);
-  digitalWrite(LeftMotorBrake, LOW);
-  analogWrite(LeftMotorSpeed, leftMotorSpeed);
+  if(leftMotorDir == 0){
+     digitalWrite(LeftMotorDir1, LOW);
+    digitalWrite(LeftMotorDir2, HIGH);
+  }
+  else{
+    digitalWrite(LeftMotorDir1, HIGH);
+    digitalWrite(LeftMotorDir2, LOW);
+  }
+  // set speed out of possible range 0~255
+  int speed = leftMotorSpeed%255;
+  analogWrite(LeftMotorEnable, speed);
 }
 
 void setRightMotor(int rightMotorDir, int rightMotorSpeed){
-  digitalWrite(RightMotorDir, rightMotorDir);
-  digitalWrite(RightMotorBrake, LOW);
-  analogWrite(RightMotorSpeed, rightMotorSpeed);
+  // this function will run the LeftMotor
+   if(rightMotorDir == 0){
+    digitalWrite(RightMotorDir1, LOW);
+    digitalWrite(RightMotorDir2, HIGH);
+  }
+  else{
+    digitalWrite(RightMotorDir1, HIGH);
+    digitalWrite(RightMotorDir2, LOW);
+  }
+  // set speed out of possible range 0~255
+  int speed = rightMotorSpeed%255;
+  analogWrite(RightMotorEnable, speed);
 }
 
 void stopLeftMotor() {
   setLeftMotor(FWD, 0);
-  digitalWrite(LeftMotorBrake, HIGH);
+//  digitalWrite(LeftMotorBrake, HIGH);
 }
 void stopRightMotor(){
   setRightMotor(FWD, 0);
-  digitalWrite(RightMotorBrake, HIGH);
+//  digitalWrite(RightMotorBrake, HIGH);
 }
 
 void driveStraight(int dir, int motor_speed) {
@@ -230,7 +268,7 @@ void driveStraight(int dir, int motor_speed) {
 
 void driveStraightToDist(int dir, int motor_speed, int distance) {
   // maintaining straightness with two back TOF to be incorporated
-  setLeftMotor (dir,motor_speed);
+  setLeftMotor(dir,motor_speed);
   setRightMotor(dir,motor_speed);
 
   // REPLACE THIS
@@ -242,6 +280,24 @@ void stopMotors() {
   stopLeftMotor();
   stopRightMotor();
 }
+
+void intializeArduinoMotorControllerPins() {
+   //MOTOR CONTROLLER PIN SETUP
+  pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(RightMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+  //Setup Channel B
+  pinMode(LeftMotorDir, OUTPUT); //Initiates Motor Channel A pin
+  pinMode(LeftMotorBrake, OUTPUT); //Initiates Brake Channel A pin
+ }
+
+ void intializeL289NMotorShield() {
+  pinMode(RightMotorEnable, OUTPUT);
+  pinMode(LeftMotorEnable, OUTPUT);
+  pinMode(RightMotorDir1, OUTPUT);
+  pinMode(RightMotorDir2, OUTPUT);
+  pinMode(LeftMotorDir1, OUTPUT);
+  pinMode(LeftMotorDir2, OUTPUT);
+ }
 
 void correctOrientation() {
   // INSERT CODE HERE
@@ -332,10 +388,57 @@ void locateTarget() {
 }
 
 void chaseDownTarget() {
-  
+      //Turn right to realign with initial position
+      Serial.println("start chasing");
+    delay(500);
+//    setRightMotor(FWD, ROT_SPEED);
+//    setLeftMotor(BWD, ROT_SPEED);
+//    
+//    delay(MS_ROTATE);
+//    stopLeftMotor();
+//    stopRightMotor();
+//    delay(500);
+//    //start go forward
+//    driveStraight(FWD, STRAIGHT_SCANNING_SPEED);
+
+      setRightMotor(FWD, 150);
+    setLeftMotor(BWD, 150);
+    
+    delay(MS_ROTATE);
+    stopLeftMotor();
+    stopRightMotor();
+    delay(500);
+    //start go forward
+    driveStraight(FWD, 180);
+    
+
+    //stop when within the range 
+  bool reachTarget = false;
+  while(!reachTarget) {
+    int distanceTarget = getUltrasonicReading(UltrasonicFront, 5);
+    Serial.println(distanceTarget);
+    if(distanceTarget < 10){
+      reachTarget = 1;
+      }
+  }
+    stopMotors();
+  Serial.println("stopped at target!");
 }
 
 // HELPER FUNCTIONS
+
+double getUltrasonicReading(ST_HW_HC_SR04* sensor, int numRead){
+  double returnVal = 0;
+  int hitTime = 0;
+
+  for (int i = 0; i < numRead;  i++){
+    hitTime = sensor->getHitTime();
+    returnVal += (double)(hitTime / 29.1);
+  }
+  returnVal /= numRead;
+  return returnVal;
+}
+
 
 // read in a buffer of last 10 TOF scans; return true if target detected
 bool detectTarget(double data[], int size_data) {
