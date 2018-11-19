@@ -18,7 +18,7 @@ Sensor_IMU::Sensor_IMU(){
 }
 
 void Sensor_IMU::recalcOffsets() {
-	Serial.println("Recalculating offsets");
+	//Serial.println("Recalculating offsets");
 	float x = 0, y = 0, z = 0;
 
 	for (int i = 0; i < 50; i++) {
