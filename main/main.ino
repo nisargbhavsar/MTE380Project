@@ -3,13 +3,12 @@
 
 //Sensor Libraries
 #include "VL53L1X.h" //TOF
-#include "MPU6050_tockn.h" //IMU
-#include "SensorIMU.h"
+//#include "MPU6050_tockn.h" //IMU
+//#include "SensorIMU.h"
 #include "ST_HW_HC_SR04.h"
 #include "vl53l1_api.h"
 
 // FUNCTION PROTOTYPES
-void turn90Deg(bool);
 double getUltrasonicReading(ST_HW_HC_SR04*, int);
 void printCurrIMUData(unsigned long);
 //void alignToWall(ST_HW_HC_SR04*);
@@ -17,13 +16,13 @@ void alignToWallWithTwo(ST_HW_HC_SR04*, ST_HW_HC_SR04*);
 void rotate90Deg(int);
 void setLeftMotor(int leftMotorDir, int leftMotorSpeed);
 void setRightMotor(int rightMotorDir, int rightMotorSpeed);
+void stopMotorsXYZ();
 void stopLeftMotor();
 void stopRightMotor();
 void driveStraight(int, int);
 void locateTarget();
 bool detectTarget(double, int);
 void printArr(double arr[], int size_arr);
-void stopMotors();
 double getMeasurements(int);
 void driveStraightToDist(int dir, int motor_speed, int distance);
 void correctOrientation();
@@ -41,8 +40,8 @@ const int DOWN_HUMP_SPEED = 100;
 
 const int BWD = 0;
 const int FWD = 1;
-const int RIGHT = 1;
-const int LEFT = 0;
+const int RIGHT = 0;
+const int LEFT = 1;
 const double ALIGN_TOL = 0.5;
 const int WALL_DIST = 2000; // in mm
 const int TARGET_TOL = 200;
@@ -51,6 +50,8 @@ const int REQ_OBJ_DETECTIONS = 5;
 const int FACING_UP = 1; 
 const int FACING_STRAIGHT = 0;
 const int FACING_DOWN = 2;
+
+const int ROTATE_TOL = 1;
 
 const int MS_ROTATE = 200;
 int RightMotorDir = 12, RightMotorBrake = 9, RightMotorSpeed = 3;
@@ -61,7 +62,7 @@ int status;
 int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 5, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
 
 ST_HW_HC_SR04* UltrasonicFront;
-Sensor_IMU IMU;
+//Sensor_IMU IMU;
 
 void setup() {
   intializeL289NMotorShield();
@@ -73,7 +74,9 @@ void setup() {
   Wire.begin();
 
   Wire.setClock(400000); // use 400 kHz I2C
-  IMU.initialize();
+//  IMU.initialize();
+
+  UltrasonicFront = new ST_HW_HC_SR04(4,3);
 
   //MOTOR CONTROLLER PIN SETUP
   pinMode(RightMotorDir, OUTPUT); //Initiates Motor Channel A pin
@@ -115,10 +118,10 @@ void setup() {
 //    while(1);
   }
 
-  // SET MOTOR SPEEDS
-    setLeftMotor (FWD, MAX_MOTOR_SPEED);
-    setRightMotor(FWD, MAX_MOTOR_SPEED);
-    Serial.print("moved motors");
+//  // SET MOTOR SPEEDS
+//    setLeftMotor (FWD, MAX_MOTOR_SPEED);
+//    setRightMotor(FWD, MAX_MOTOR_SPEED);
+//    Serial.print("moved motors");
 
   // get TOS measurementd
   //double sideTofReading = getMeasurements(3);
@@ -137,25 +140,32 @@ void loop() {
 //  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2000); //  distance from metal wall to back wall
 //  correctOrientation();
 //
-  // Get on wall
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (IMU.onWall() != FACING_UP);
-  stopMotors();
+//  // Get on wall
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (IMU.onWall() != FACING_UP);
+//  Serial.println("now facing up");
+//  stopLeftMotor();
+//  stopRightMotor();
 
-  // Get over wall
-  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
-  correctOrientation();
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (IMU.onWall() != FACING_STRAIGHT);
-  driveStraight(FWD, DOWN_HUMP_SPEED);
-  while (IMU.onWall() != FACING_DOWN);
-  driveStraight(FWD, MAX_MOTOR_SPEED);
-  while (IMU.onWall() == FACING_DOWN);
-  stopMotors();
+//  // Get over wall
+//  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 800);
+//  correctOrientation();
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (IMU.onWall() != FACING_STRAIGHT);
+//  Serial.println("now facing straight");
+//  driveStraight(FWD, DOWN_HUMP_SPEED);
+//  while (IMU.onWall() != FACING_DOWN);
+//  Serial.println("now facing down");
+//  driveStraight(FWD, MAX_MOTOR_SPEED);
+//  while (IMU.onWall() == FACING_DOWN);
+//  Serial.println("now facing down");
+//  stopLeftMotor();
+//  stopRightMotor();
+
 
 //  // get to initial target searching position
 //  correctOrientation();
-//  rotate90Deg(LEFT);
+  rotate90Deg(LEFT);
 //  correctOrientation();
 //  driveStraight(FWD, MAX_MOTOR_SPEED); // get to side
 //  delay(500);
@@ -205,7 +215,7 @@ void loop() {
 //  delay(2000);
 //  stopMotors(); 
 //
-//  delay(10000);
+  delay(10000);
 }
 
 // MOTOR CONTROL
@@ -219,7 +229,7 @@ void setLeftMotor(int leftMotorDir, int leftMotorSpeed){
     digitalWrite(LeftMotorDir2, LOW);
   }
   // set speed out of possible range 0~255
-  int speed = leftMotorSpeed%255;
+  int speed = leftMotorSpeed%256;
   analogWrite(LeftMotorEnable, speed);
 }
 
@@ -234,7 +244,7 @@ void setRightMotor(int rightMotorDir, int rightMotorSpeed){
     digitalWrite(RightMotorDir2, LOW);
   }
   // set speed out of possible range 0~255
-  int speed = rightMotorSpeed%255;
+  int speed = rightMotorSpeed%256;
   analogWrite(RightMotorEnable, speed);
 }
 
@@ -258,12 +268,12 @@ void driveStraightToDist(int dir, int motor_speed, int distance) {
   setLeftMotor (dir,motor_speed);
   setRightMotor(dir,motor_speed);
 
-  // REPLACE THIS
-  delay(500);
-  stopMotors();
+//  // REPLACE THIS
+//  delay(500);
+//  stopMotorsXYZ();
 }
 
-void stopMotors() {
+void stopMotorsXYZ(){
   stopLeftMotor();
   stopRightMotor();
 }
@@ -323,23 +333,6 @@ double getMeasurements(int measurements)
   return (rangetotal /(measurements));
 }
 
-// IMU
-bool onHump() {
-  return true;
-}
-
-bool facingDown() {
-  return true;
-}
-
-bool facingUp() {
-  return true;
-}
-
-void rotate90Deg(int dir) {
-  
-}
-
 // COURSE FUNCTIONS
 
 // drives straight until it sees the target
@@ -371,7 +364,7 @@ void locateTarget() {
   }
 
   // stop motors  
-  stopMotors();
+  stopMotorsXYZ();
   Serial.println("Detected target!");
 }
 
@@ -394,13 +387,14 @@ void chaseDownTarget() {
     //stop when within the range 
   bool reachTarget = false;
   while(!reachTarget) {
-    int distanceTarget = getUltrasonicReading(UltrasonicFront, 5);
+    double distanceTarget = getUltrasonicReading(UltrasonicFront, 5);
+    
     Serial.println(distanceTarget);
-    if(distanceTarget < 10){
+    if((distanceTarget < 10) && (distanceTarget > 0 )){ // FIX SO THAT IT HAS LESS THAN ZERO TOO
       reachTarget = 1;
-      }
+     }
   }
-    stopMotors();
+    stopMotorsXYZ();
   Serial.println("stopped at target!");
 }
 
@@ -447,52 +441,52 @@ void addToBuffer(double data[], int size_arr, double new_data){
   data[size_arr - 1] = new_data;
 }
 
-void turn90Deg(bool isLeft){
-  stopLeftMotor();
-  stopRightMotor();
-  delay(MS_ROTATE);
-
-//  if(isLeft)
-//    Serial.println("Turning Left");
-//  else
-//    Serial.println("Turning Right");
-
-  float currZ = 0, initZ = 0;
-
-  IMUData data;
-  for (int i = 0; i < 10; i++) {
-    data = IMU.getData();
-  //  Serial.print(IMU->getAngleZ());
-  //  Serial.print(", ");
-    initZ += data.angle[2];
-  }
-  initZ /= 10;
-
-  currZ = 0;
-  if (isLeft) {
-    setLeftMotor(BWD, ROT_SPEED);
-    setRightMotor(FWD, ROT_SPEED);
-  }
-  else {
-    setLeftMotor(FWD, ROT_SPEED);
-    setRightMotor(BWD, ROT_SPEED);
-  }
-  String temp;
-  while((abs(currZ-initZ) - 90) < (ROTATE_TOL*2)) {
-    delay(MS_ROTATE);
-    data = IMU.getData();
-    currZ = data.angle[2];
-  //maybe change to:
-//currZ = data.gyro[2];
-//    temp = "CurrZ: " + (String) currZ;
-//    Serial.println(temp);
-//    temp = "initZ: " + (String) initZ;
-//    Serial.println(temp);
-//    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
-//    Serial.println(currOrientation);
-  }
-
-  // set motor speeds
-  stopLeftMotor();
-  stopRightMotor();
+void rotate90Deg(int isLeft){
+//  stopLeftMotor();
+//  stopRightMotor();
+//  delay(MS_ROTATE);
+//
+////  if(isLeft)
+////    Serial.println("Turning Left");
+////  else
+////    Serial.println("Turning Right");
+//
+//  float currZ = 0, initZ = 0;
+//
+////  IMUData data;
+//  for (int i = 0; i < 10; i++) {
+//    data = IMU.getData();
+//  //  Serial.print(IMU->getAngleZ());
+//  //  Serial.print(", ");
+//    initZ += data.angle[2];
+//  }
+//  initZ /= 10;
+//
+//  currZ = 0;
+//  if (isLeft) {
+//    setLeftMotor(BWD, ROT_SPEED);
+//    setRightMotor(FWD, ROT_SPEED);
+//  }
+//  else {
+//    setLeftMotor(FWD, ROT_SPEED);
+//    setRightMotor(BWD, ROT_SPEED);
+//  }
+//  String temp;
+//  while((abs(currZ-initZ) - 90) < (ROTATE_TOL*2)) {
+//    delay(MS_ROTATE);
+//    data = IMU.getData();
+//    currZ = data.angle[2];
+//  //maybe change to:
+////currZ = data.gyro[2];
+////    temp = "CurrZ: " + (String) currZ;
+////    Serial.println(temp);
+////    temp = "initZ: " + (String) initZ;
+////    Serial.println(temp);
+////    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+////    Serial.println(currOrientation);
+//  }
+//
+//  // set motor speeds
+//  stopLeftMotor();
+//  stopRightMotor();
 }
