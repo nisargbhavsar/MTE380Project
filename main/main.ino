@@ -9,6 +9,7 @@
 #include "vl53l1_api.h"
 
 // FUNCTION PROTOTYPES
+void turn90Deg(bool);
 double getUltrasonicReading(ST_HW_HC_SR04*, int);
 void printCurrIMUData(unsigned long);
 //void alignToWall(ST_HW_HC_SR04*);
@@ -444,4 +445,54 @@ void addToBuffer(double data[], int size_arr, double new_data){
     data[i] = data[i+1];
   }
   data[size_arr - 1] = new_data;
+}
+
+void turn90Deg(bool isLeft){
+  stopLeftMotor();
+  stopRightMotor();
+  delay(MS_ROTATE);
+
+//  if(isLeft)
+//    Serial.println("Turning Left");
+//  else
+//    Serial.println("Turning Right");
+
+  float currZ = 0, initZ = 0;
+
+  IMUData data;
+  for (int i = 0; i < 10; i++) {
+    data = IMU.getData();
+  //  Serial.print(IMU->getAngleZ());
+  //  Serial.print(", ");
+    initZ += data.angle[2];
+  }
+  initZ /= 10;
+
+  currZ = 0;
+  if (isLeft) {
+    setLeftMotor(BWD, ROT_SPEED);
+    setRightMotor(FWD, ROT_SPEED);
+  }
+  else {
+    setLeftMotor(FWD, ROT_SPEED);
+    setRightMotor(BWD, ROT_SPEED);
+  }
+  String temp;
+  while((abs(currZ-initZ) - 90) < (ROTATE_TOL*2)) {
+    delay(MS_ROTATE);
+    data = IMU.getData();
+    currZ = data.angle[2];
+  //maybe change to:
+//currZ = data.gyro[2];
+//    temp = "CurrZ: " + (String) currZ;
+//    Serial.println(temp);
+//    temp = "initZ: " + (String) initZ;
+//    Serial.println(temp);
+//    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+//    Serial.println(currOrientation);
+  }
+
+  // set motor speeds
+  stopLeftMotor();
+  stopRightMotor();
 }

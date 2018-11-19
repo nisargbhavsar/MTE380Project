@@ -111,8 +111,8 @@ void setup() {
 	startMillis = millis();  //initial start time
 
 
-	setLeftMotor (BWD,250);
-	setRightMotor(BWD,100);
+	setLeftMotor (FWD,250);
+	setRightMotor(FWD,250);
 
 	//String temp = "Aligning to wall";
 	//Serial.println(temp);
