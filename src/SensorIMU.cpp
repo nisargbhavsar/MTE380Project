@@ -4,7 +4,7 @@
  *  Created on: Nov 5, 2018
  *      Author: nisarg
  */
-//#include "SensorIMU.h"
+#include "SensorIMU.h"
 #include "MPU6050_tockn.h" //IMU
 
 Sensor_IMU::Sensor_IMU(){
