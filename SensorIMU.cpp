@@ -43,7 +43,7 @@ void Sensor_IMU::initialize(){
 	this->counter =-1;
 
 	(this->IMU)->begin();
-	(this->IMU)->calcGyroOffsets(0);
+	(this->IMU)->calcGyroOffsets(1);
 
 	delay(100);
 
@@ -136,24 +136,30 @@ void Sensor_IMU::printData(IMUData data){
  * Return 0 if not on wall
  */
 int Sensor_IMU::onWall(){
-	Serial.println("Inside onWall");
+	//  Serial.println("Inside onWall");
 
-	IMUData data = this->getData();
-	printData(data);
+	  IMUData data = this->getData();
+	  this->recalcOffsets();
+//	  printData(data);
 
-	Serial.println(this->offsetXAngle);
-	Serial.println(this->offsetXAngle + 90);
-	Serial.println(this->offsetXAngle + 180);
+	//  Serial.println(this->offsetXAngle);
+	//  Serial.println(this->offsetXAngle + 90);
+	//  Serial.println(this->offsetXAngle + 180);
 
 
-	if(data.angle[0] > this->offsetXAngle && data.angle[0] < this->offsetXAngle ){
-		return 1;
-	}
-	else if(data.angle[0] > this->offsetXAngle + 90 && data.angle[0] < this->offsetXAngle + 180){
-		return 2;
-	}
-	else
-		return 0;
+	  //if(data.angle[0] > this->offsetXAngle && data.angle[0] < this->offsetXAngle ){
+	  //int angle = data.angle[0]  - this->offsetXAngle;
+	  int angle = data.gyro[0] - this->offsetXAngle;
+	  //  int upperbound = 200;
+	//  int lowerbounds = -200;
+	  Serial.println(angle);
+	  if( angle < 0 && angle > -140 ){
+	    return 1;
+	  }
+	  if(angle > 0){
+	    return 2;
+	  }
+	    return 0;
 }
 
 
