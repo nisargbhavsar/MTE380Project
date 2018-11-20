@@ -15,6 +15,7 @@ PROJECT_OBJS = \
 	project/SensorIMU.cpp.o \
 	project/SensorUltrasonic.cpp.o \
 	project/VL53L1X.cpp.o \
+	project/vl53l1_platform.cpp.o \
 
 PLATFORM_CORE_OBJS = \
 	core/IPAddress.cpp.o \
@@ -113,6 +114,14 @@ project/VL53L1X.cpp.o: ../../VL53L1X.cpp project/VL53L1X.cpp.d
 project/VL53L1X.cpp.d: ;
 
 -include project/VL53L1X.cpp.d 
+
+project/vl53l1_platform.cpp.o: ../../vl53l1_platform.cpp project/vl53l1_platform.cpp.d
+	@$(call mymkdir,$(dir $@))
+	"/home/nisarg/.arduinocdt/packages/arduino/tools/avr-gcc/5.4.0-atmel3.6.1-arduino2/bin/avr-g++" -c -g -Os -w -std=gnu++11 -fpermissive -fno-exceptions -ffunction-sections -fdata-sections -fno-threadsafe-statics -Wno-error=narrowing -MMD -flto -mmcu=atmega328p -DF_CPU=16000000L -DARDUINO=10608 -DARDUINO_AVR_UNO -DARDUINO_ARCH_AVR   -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/cores/arduino" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/variants/standard" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/libraries/EEPROM/src" -I"/home/nisarg/.arduinocdt/libraries/ST_HW_HC_SR04/2.0.3/src" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/libraries/Wire/src" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/libraries/SPI/src" -I"/home/nisarg/.arduinocdt/libraries/MPU6050_tockn/1.4.0/src" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/libraries/SoftwareSerial/src" -I"/home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/libraries/HID/src" "$<" -o "$@"
+
+project/vl53l1_platform.cpp.d: ;
+
+-include project/vl53l1_platform.cpp.d 
 
 
 core/IPAddress.cpp.o: /home/nisarg/.arduinocdt/packages/arduino/hardware/avr/1.6.23/cores/arduino/IPAddress.cpp core/IPAddress.cpp.d

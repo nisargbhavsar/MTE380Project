@@ -2,7 +2,7 @@
 #include <Wire.h>
 
 //Sensor Libraries
-#include "VL53L1X.h" //TOF
+#include "vl53l1_api.h"
 #include "SensorIMU.h"
 #include "ST_HW_HC_SR04.h"
 
@@ -60,14 +60,13 @@ const int MS_ROTATE = 200;
 //Previous motor shield defns
 //RightMotorBrake = 9, RightMotorSpeed = 3;
 //int LeftMotorDir = 13, LeftMotorBrake = 8, LeftMotorSpeed = 11;
-
-VL53L1X TOF;
-
+VL53L1_Dev_t                   dev;
+VL53L1_DEV                     Dev = &dev;
 int status;
 int RightMotorEnable = 10, RightMotorDir1 = 9, RightMotorDir2 = 8, LeftMotorEnable = 11, LeftMotorDir1 = 7, LeftMotorDir2 = 6;
 
 ST_HW_HC_SR04* UltrasonicFront;
-Sensor_IMU IMU;
+//Sensor_IMU IMU;
 
 void setup() {
   intializeL289NMotorShield();
@@ -79,7 +78,7 @@ void setup() {
   Wire.begin();
 
   Wire.setClock(400000); // use 400 kHz I2C
-  IMU.initialize();
+//  IMU.initialize();
 
 //  UltrasonicFront = new ST_HW_HC_SR04(4,3);
 //
@@ -92,30 +91,62 @@ void setup() {
 ////  pinMode(LeftMotorBrake, OUTPUT);  //Initiates Brake Channel A pin
 //
 //
-//  TOF.setDistanceMode(2);
-//  //bool test = TOF.setMeasurementTimingBudget(TOF_MEASURE_TIME);
-//  TOF.softReset();
+  uint8_t byteData;
+    uint16_t wordData;
+
+    Dev->I2cDevAddr = 0x52;
+
+    VL53L1_software_reset(Dev);
+
+    VL53L1_RdByte(Dev, 0x010F, &byteData);
+    Serial.print(F("VL53L1X Model_ID: "));
+    Serial.println(byteData, HEX);
+    VL53L1_RdByte(Dev, 0x0110, &byteData);
+    Serial.print(F("VL53L1X Module_Type: "));
+    Serial.println(byteData, HEX);
+    VL53L1_RdWord(Dev, 0x010F, &wordData);
+    Serial.print(F("VL53L1X: "));
+    Serial.println(wordData, HEX);
+
+    Serial.println(F("Autonomous Ranging Test"));
+    status = VL53L1_WaitDeviceBooted(Dev);
+    status = VL53L1_DataInit(Dev);
+    status = VL53L1_StaticInit(Dev);
+    status = VL53L1_SetDistanceMode(Dev, VL53L1_DISTANCEMODE_MEDIUM);
+    status = VL53L1_SetMeasurementTimingBudgetMicroSeconds(Dev, 50000);
+    status = VL53L1_SetInterMeasurementPeriodMilliSeconds(Dev, 100); // reduced to 50 ms from 500 ms in ST example
+    status = VL53L1_StartMeasurement(Dev);
+
+    if(status)
+    {
+      Serial.println(F("VL53L1_StartMeasurement failed"));
+  //    while(1);
+    }
 
 
   // SET MOTOR SPEEDS
 //    setLeftMotor (FWD, MAX_MOTOR_SPEED);
-//    setRightMotor(FWD, MAX_MOTOR_SPEED);
+//    setRightMotor(BWD, MAX_MOTOR_SPEED);
 //    Serial.print("moved motors");
 //
 //    delay(500);
-    rotate90Deg(LEFT);
-    //Serial.print("Done turning Left");
+//    rotate90Deg(RIGHT);
+//    Serial.print("Done turning Left");
 
 
   // get TOS measurement
   //double sideTofReading = getMeasurements(3);
   //Serial.println((String)sideTofReading);
 }
-//bool test = 0;
 void loop() {
-//    rotate90Deg(test);
-//    test = !test;
-//    delay(500);
+
+	double reading = getMeasurements(3);
+	Serial.println(reading);
+//	rotate90Deg(LEFT);
+//	delay(300);
+//	rotate90Deg(RIGHT);
+//	delay(300);
+
   // OVERALL MISSION CONTROL
 
 //  // Get to wall
@@ -162,9 +193,9 @@ void loop() {
 //  correctOrientation();
 //  driveStraightToDist(FWD, MAX_MOTOR_SPEED, 2300); // get to corner
 ////
-////  // locate target
-//  locateTarget();
-//  rotate90Deg(RIGHT);
+  // locate target
+  locateTarget();
+  rotate90Deg(RIGHT);
 //
 ////  // get to target
 //  chaseDownTarget();
@@ -209,8 +240,8 @@ void loop() {
 //  driveStraight(FWD, MAX_MOTOR_SPEED);
 //  delay(2000);
 //  stopMotorsXYZ();
-//
-  delay(10000);
+
+  	delay(10000);
 }
 
 // MOTOR CONTROL
@@ -299,13 +330,33 @@ void intializeL289NMotorShield() {
 // TOF
 double getMeasurements(int measurements)
 {
-	double totalDist = 0;
+	static VL53L1_RangingMeasurementData_t RangingData;
+	  double range = -1;
+	  double rangetotal = 0;
 
-	for(int i =0; i < measurements; i++){
-		totalDist += (double)TOF.getDistance();
-	}
+	  for (int i = 0; i < measurements; i++)
+	  {
 
-	return totalDist/measurements;
+	    status = VL53L1_WaitMeasurementDataReady(Dev);
+	    if (!status)
+	    {
+	      status = VL53L1_GetRangingMeasurementData(Dev, &RangingData);
+	      if (status == 0)
+	      {
+	        range = RangingData.RangeMilliMeter;
+	        status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
+	        rangetotal += range;
+	      }
+	      else
+	      {
+	        Serial.println("error");
+	        status = VL53L1_ClearInterruptAndStartMeasurement(Dev);
+	        return -1;
+	      }
+	    }
+	  }
+
+	  return (rangetotal /(measurements));
 }
 
 // COURSE FUNCTIONS
@@ -421,50 +472,87 @@ void rotate90Deg(int isLeft){
   stopRightMotor();
   delay(MS_ROTATE);
 
-  if(isLeft)
-    Serial.println("Turning Left");
-  else
-    Serial.println("Turning Right");
-
-  float currZ = 0, initZ = 0;
-
-  IMUData data;
-  for (int i = 0; i < 10; i++) {
-    data = IMU.getData();
-  //  Serial.print(IMU->getAngleZ());
-  //  Serial.print(", ");
-    initZ += data.angle[2];
-  }
-  initZ /= 10;
-
-  currZ = 0;
   if (isLeft) {
-    setLeftMotor(BWD, ROT_SPEED);
-    setRightMotor(FWD, ROT_SPEED);
-  }
-  else {
-    setLeftMotor(FWD, ROT_SPEED);
-    setRightMotor(BWD, ROT_SPEED);
-  }
-  String temp;
-  while((abs(currZ-initZ) - 80) < (ROTATE_TOL*2)) {
-    delay(MS_ROTATE);
-    data = IMU.getData();
-    currZ = data.angle[2];
-  //maybe change to:
-//currZ = data.gyro[2];
-    Serial.println(currZ);
-//    temp = "CurrZ: " + (String) currZ;
-//    Serial.println(temp);
-//    temp = "initZ: " + (String) initZ;
-//    Serial.println(temp);
-//    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
-//    Serial.println(currOrientation);
-  }
+	setLeftMotor(BWD, ROT_SPEED);
+	setRightMotor(FWD, ROT_SPEED);
+	}
+	else {
+	setLeftMotor(FWD, ROT_SPEED);
+	setRightMotor(BWD, ROT_SPEED);
+	}
 
-  // set motor speeds
+  delay(900);
   stopLeftMotor();
   stopRightMotor();
+
+  //  IMU.recalcOffsets();
+//  if(isLeft)
+//    Serial.println("Turning Left");
+//  else
+//    Serial.println("Turning Right");
+//
+//  float currZ = 0, initZ = 0;
+//
+//  IMUData data;
+//  for (int i = 0; i < 10; i++) {
+//    data = IMU.getData();
+//  //  Serial.print(IMU->getAngleZ());
+//  //  Serial.print(", ");
+//    initZ += (data.angle[2] /10);
+//  }
+//
+//  currZ = 0;
+//  if (isLeft) {
+////    setLeftMotor(BWD, ROT_SPEED);
+////    setRightMotor(FWD, ROT_SPEED);
+//	    setLeftMotor(FWD, ROT_SPEED);
+//	    setRightMotor(BWD, ROT_SPEED);
+//  }
+//  else {
+////    setLeftMotor(FWD, ROT_SPEED);
+////    setRightMotor(BWD, ROT_SPEED);
+//    setLeftMotor(BWD, ROT_SPEED);
+//	setRightMotor(FWD, ROT_SPEED);
+//  }
+//  String temp;
+//  if(isLeft){
+//	  while((abs(currZ-initZ) - 80) < (ROTATE_TOL*2)) {
+//		delay(MS_ROTATE);
+//		data = IMU.getData();
+//		currZ = data.angle[2];
+//	  //maybe change to:
+//	//currZ = data.gyro[2];
+//		Serial.println(currZ);
+//	//    temp = "CurrZ: " + (String) currZ;
+//	//    Serial.println(temp);
+//	//    temp = "initZ: " + (String) initZ;
+//	//    Serial.println(temp);
+//	//    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+//	//    Serial.println(currOrientation);
+//	  }
+//  }
+//  else{
+//	  Serial.println(currZ);
+//	  Serial.println(initZ);
+//
+//	while((abs(currZ-initZ) - 80) > (ROTATE_TOL*2)) {
+//		delay(MS_ROTATE);
+//		data = IMU.getData();
+//		currZ = data.angle[2];
+//		//maybe change to:
+//		//currZ = data.gyro[2];
+//		Serial.println(currZ);
+//		//    temp = "CurrZ: " + (String) currZ;
+//		//    Serial.println(temp);
+//		//    temp = "initZ: " + (String) initZ;
+//		//    Serial.println(temp);
+//		//    String currOrientation = "currX: "+ (String)currX + "currY: " + (String)currY + "currZ: " + (String)currZ;
+//		//    Serial.println(currOrientation);
+//	}
+//  }
+//  // set motor speeds
+//  stopLeftMotor();
+//  stopRightMotor();
 }
 
 
